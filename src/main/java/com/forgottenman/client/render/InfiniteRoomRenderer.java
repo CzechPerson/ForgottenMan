@@ -1,6 +1,5 @@
 package com.forgottenman.client.render;
 
-import com.forgottenman.ForgottenMan;
 import com.forgottenman.client.shader.ModShaders;
 import com.forgottenman.network.RealityState;
 import com.forgottenman.registry.ModDimensions;
@@ -8,16 +7,14 @@ import com.forgottenman.room.RoomLayout;
 import com.mojang.blaze3d.shaders.AbstractUniform;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexBuffer;
+import net.minecraft.client.Camera;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 
@@ -34,7 +31,6 @@ import java.util.List;
  * room occludes them later. Copies are gathered and culled first, then drawn front
  * to back.
  */
-@EventBusSubscriber(modid = ForgottenMan.MOD_ID, value = Dist.CLIENT)
 public final class InfiniteRoomRenderer {
     private static final int RANGE_XZ = 4;
     private static final int RANGE_Y = 1;
@@ -51,11 +47,9 @@ public final class InfiniteRoomRenderer {
     private record CopyDraw(int i, int j, int k, float ease, double ox, double oy, double oz, double distSq) {
     }
 
-    @SubscribeEvent
-    static void onRenderLevelStage(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_SKY) {
-            return;
-        }
+    /** Called by LevelRendererMixin, immediately after the sky is drawn */
+    public static void renderAfterSky(DeltaTracker deltaTracker, Camera camera, Frustum frustum,
+                                      Matrix4f modelViewMatrix, Matrix4f projectionMatrix) {
         Minecraft mc = Minecraft.getInstance();
         int mirrorLevel = RealityState.getMirrorLevel();
         if (mc.level == null || mc.level.dimension() != ModDimensions.TREE_ROOM) {
@@ -64,7 +58,7 @@ public final class InfiniteRoomRenderer {
             return;
         }
         // Copies glide out from the real room to their slots instead of popping in
-        float dt = event.getPartialTick().getGameTimeDeltaTicks();
+        float dt = deltaTracker.getGameTimeDeltaTicks();
         ringProgress = approach(ringProgress, mirrorLevel >= 1 ? 1.0F : 0.0F, dt * 0.045F);
         hallProgress = approach(hallProgress, mirrorLevel >= 2 ? 1.0F : 0.0F, dt * 0.035F);
         if (ringProgress <= 0.001F && hallProgress <= 0.001F) {
@@ -76,11 +70,10 @@ public final class InfiniteRoomRenderer {
             return;
         }
 
-        Vec3 cam = event.getCamera().getPosition();
-        Frustum frustum = event.getFrustum();
+        Vec3 cam = camera.getPosition();
         // Shared drift clock, wrapped to keep float precision
         float time = (float) (mc.level.getGameTime() % 240000L)
-                + event.getPartialTick().getGameTimeDeltaPartialTick(false);
+                + deltaTracker.getGameTimeDeltaPartialTick(false);
 
         List<CopyDraw> draws = new ArrayList<>();
         for (int i = -RANGE_XZ; i <= RANGE_XZ; i++) {
@@ -131,8 +124,8 @@ public final class InfiniteRoomRenderer {
         // Front to back, far copies fail depth early
         draws.sort(Comparator.comparingDouble(CopyDraw::distSq));
 
-        Matrix4f baseRotation = event.getModelViewMatrix();
-        Matrix4f projection = new Matrix4f(event.getProjectionMatrix());
+        Matrix4f baseRotation = modelViewMatrix;
+        Matrix4f projection = new Matrix4f(projectionMatrix);
 
         RenderSystem.setShaderTexture(0, InventoryMenu.BLOCK_ATLAS);
         // Mirrored copies flip winding, the cull face is picked per copy below

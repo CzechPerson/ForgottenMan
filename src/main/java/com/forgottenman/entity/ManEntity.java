@@ -14,7 +14,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 /**
  * The man behind the tree
@@ -82,8 +82,8 @@ public class ManEntity extends Entity {
     @Override
     public InteractionResult interact(Player player, InteractionHand hand) {
         if (getVanishTicks() < 0 && player instanceof ServerPlayer serverPlayer
-                && !serverPlayer.getData(ModAttachments.MET_MAN.get())) {
-            PacketDistributor.sendToPlayer(serverPlayer, OpenManDialoguePayload.INSTANCE);
+                && !ModAttachments.hasMetMan(serverPlayer)) {
+            ServerPlayNetworking.send(serverPlayer, OpenManDialoguePayload.INSTANCE);
         }
         return InteractionResult.sidedSuccess(this.level().isClientSide);
     }

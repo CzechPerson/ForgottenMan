@@ -1,6 +1,5 @@
 package com.forgottenman.client.render;
 
-import com.forgottenman.ForgottenMan;
 import com.forgottenman.block.MysteriousDoorBlockEntity;
 import com.forgottenman.client.shader.ModShaders;
 import com.forgottenman.registry.ModDimensions;
@@ -14,6 +13,9 @@ import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.Camera;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.ShaderInstance;
@@ -27,11 +29,6 @@ import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.ModList;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 
@@ -53,13 +50,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * later out of the doorway)
  * A double door counts as one doorway
  */
-@EventBusSubscriber(modid = ForgottenMan.MOD_ID, value = Dist.CLIENT)
 public final class DoorPortalRenderer {
     // Mid-plane offsets of the 3/16-thick closed door panel
     private static final float PLANE_NEAR = 1.5F / 16.0F;
     private static final float PLANE_FAR = 14.5F / 16.0F;
     private static final double MAX_DISTANCE_SQ = 64.0 * 64.0;
-    private static final boolean FWA_LOADED = ModList.get().isLoaded("fwa");
+    private static final boolean FWA_LOADED = FabricLoader.getInstance().isModLoaded("fwa");
     private static final float CLOSE_LINGER = FWA_LOADED ? 8.0F : 2.0F;
     // Yaw a player has walking into the room through the return door
     private static final float ROOM_ENTRY_YAW = RoomLayout.ARRIVAL_YAW;
@@ -82,18 +78,19 @@ public final class DoorPortalRenderer {
         DOORS.clear();
     }
 
-    @SubscribeEvent
-    static void onRenderLevelStage(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_BLOCK_ENTITIES || DOORS.isEmpty()) {
+    /** Called by LevelRendererMixin, at the same point NeoForge fires AFTER_BLOCK_ENTITIES */
+    public static void renderPortalStage(DeltaTracker deltaTracker, Camera camera, Frustum frustum,
+                                         Matrix4f modelViewMatrix, Matrix4f projectionMatrix) {
+        if (DOORS.isEmpty()) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             return;
         }
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
         long gameTime = mc.level.getGameTime();
-        Vec3 cam = event.getCamera().getPosition();
+        Vec3 cam = camera.getPosition();
         boolean inTreeRoom = mc.level.dimension() == ModDimensions.TREE_ROOM;
 
         List<MysteriousDoorBlockEntity> visible = new ArrayList<>();
@@ -127,7 +124,7 @@ public final class DoorPortalRenderer {
             drawStatic(visible, cam);
             return;
         }
-        renderPortals(groupIntoDoorways(visible), event, cam);
+        renderPortals(groupIntoDoorways(visible), frustum, modelViewMatrix, projectionMatrix, cam);
     }
 
     // Merge open double doors into one doorway
@@ -170,18 +167,18 @@ public final class DoorPortalRenderer {
         return doorways;
     }
 
-    private static void renderPortals(List<Doorway> doorways, RenderLevelStageEvent event, Vec3 cam) {
+    private static void renderPortals(List<Doorway> doorways, Frustum frustum,
+                                      Matrix4f modelViewMatrix, Matrix4f projectionMatrix, Vec3 cam) {
         Minecraft mc = Minecraft.getInstance();
         VertexBuffer mesh = RoomMesh.get();
         ShaderInstance roomShader = ModShaders.getRoomCopyShader();
         if (mesh == null || roomShader == null) {
             return;
         }
-        if (!mc.getMainRenderTarget().isStencilEnabled()) {
+        if (!((StencilTarget) mc.getMainRenderTarget()).forgottenman$isStencilEnabled()) {
             return; // ClientEvents turns it on between frames; never enable it mid-draw
         }
-        Frustum frustum = event.getFrustum();
-        Matrix4f proj = new Matrix4f(event.getProjectionMatrix());
+        Matrix4f proj = new Matrix4f(projectionMatrix);
 
         // Same mesh and uniforms for every doorway, set up once per frame
         RenderSystem.setShaderTexture(0, InventoryMenu.BLOCK_ATLAS);
@@ -245,7 +242,7 @@ public final class DoorPortalRenderer {
             boolean frontSide = cam.subtract(doorway.anchor()).dot(facingVec) >= 0.0;
             Direction entering = frontSide ? doorway.facing().getOpposite() : doorway.facing();
             float rad = (float) Math.toRadians(ROOM_ENTRY_YAW - entering.toYRot());
-            Matrix4f modelView = new Matrix4f(event.getModelViewMatrix())
+            Matrix4f modelView = new Matrix4f(modelViewMatrix)
                     .translate((float) (doorway.anchor().x - cam.x),
                             (float) (doorway.anchor().y - cam.y),
                             (float) (doorway.anchor().z - cam.z))

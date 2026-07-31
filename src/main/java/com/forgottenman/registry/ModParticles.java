@@ -1,24 +1,29 @@
 package com.forgottenman.registry;
 
 import com.forgottenman.ForgottenMan;
-import net.minecraft.core.particles.ParticleType;
+import net.fabricmc.fabric.api.particle.v1.FabricParticleTypes;
+import net.minecraft.core.Registry;
 import net.minecraft.core.particles.SimpleParticleType;
-import net.minecraft.core.registries.Registries;
-import net.neoforged.neoforge.registries.DeferredRegister;
+import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.util.function.Supplier;
 
 /** Falling leaf particles, one per crown color */
 public final class ModParticles {
-    public static final DeferredRegister<ParticleType<?>> PARTICLES =
-            DeferredRegister.create(Registries.PARTICLE_TYPE, ForgottenMan.MOD_ID);
+    public static final Supplier<SimpleParticleType> SCARLET_LEAF = register("scarlet_leaf");
+    public static final Supplier<SimpleParticleType> MAGENTA_LEAF = register("magenta_leaf");
+    public static final Supplier<SimpleParticleType> DEEP_MAGENTA_LEAF = register("deep_magenta_leaf");
 
-    public static final Supplier<SimpleParticleType> SCARLET_LEAF =
-            PARTICLES.register("scarlet_leaf", () -> new SimpleParticleType(false));
-    public static final Supplier<SimpleParticleType> MAGENTA_LEAF =
-            PARTICLES.register("magenta_leaf", () -> new SimpleParticleType(false));
-    public static final Supplier<SimpleParticleType> DEEP_MAGENTA_LEAF =
-            PARTICLES.register("deep_magenta_leaf", () -> new SimpleParticleType(false));
+    // SimpleParticleType's constructor is not public in vanilla, so this goes through
+    // Fabric's factory rather than `new SimpleParticleType(false)` like on NeoForge
+    private static Supplier<SimpleParticleType> register(String name) {
+        SimpleParticleType type = Registry.register(BuiltInRegistries.PARTICLE_TYPE,
+                ForgottenMan.id(name), FabricParticleTypes.simple());
+        return () -> type;
+    }
+
+    public static void register() {
+    }
 
     private ModParticles() {
     }

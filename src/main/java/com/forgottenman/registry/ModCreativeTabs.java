@@ -1,19 +1,17 @@
 package com.forgottenman.registry;
 
 import com.forgottenman.ForgottenMan;
-import net.minecraft.core.registries.Registries;
+import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.registries.DeferredRegister;
 
 import java.util.function.Supplier;
 
 public final class ModCreativeTabs {
-    public static final DeferredRegister<CreativeModeTab> TABS =
-            DeferredRegister.create(Registries.CREATIVE_MODE_TAB, ForgottenMan.MOD_ID);
-
-    public static final Supplier<CreativeModeTab> MAIN = TABS.register("main", () -> CreativeModeTab.builder()
+    public static final Supplier<CreativeModeTab> MAIN = register("main", FabricItemGroup.builder()
             .title(Component.translatable("itemGroup.forgottenman"))
             .icon(() -> new ItemStack(ModItems.MYSTERIOUS_DOOR.get()))
             .displayItems((parameters, output) -> {
@@ -29,6 +27,15 @@ public final class ModCreativeTabs {
                 output.accept(ModItems.DEEP_MAGENTA_LEAVES.get());
             })
             .build());
+
+    private static Supplier<CreativeModeTab> register(String name, CreativeModeTab tab) {
+        CreativeModeTab registered = Registry.register(
+                BuiltInRegistries.CREATIVE_MODE_TAB, ForgottenMan.id(name), tab);
+        return () -> registered;
+    }
+
+    public static void register() {
+    }
 
     private ModCreativeTabs() {
     }

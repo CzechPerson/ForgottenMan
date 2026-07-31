@@ -198,7 +198,7 @@ public final class RoomLayout {
 
     /** Spawns the man behind the tree */
     public static void ensureManPresent(ServerLevel level, ServerPlayer player) {
-        if (player.getData(ModAttachments.MET_MAN.get())) {
+        if (ModAttachments.hasMetMan(player)) {
             return; // He has nothing more for you, for now
         }
         AABB roomBox = new AABB(ORIGIN.getX(), ORIGIN.getY(), ORIGIN.getZ(),

@@ -13,7 +13,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -111,7 +111,7 @@ public class ManDialogueScreen extends Screen {
         // Story beats
         switch (lineIndex) {
             case 1 -> // "(He offers you something.)"
-                    PacketDistributor.sendToServer(GiveEggPayload.INSTANCE);
+                    ClientPlayNetworking.send(GiveEggPayload.INSTANCE);
             case 3 -> { // "(He pointed into the distance.)"
                 RealityState.setMirrorLevel(1);
                 play(ModSounds.REALITY_CRACK.get(), 1.0F, 1.0F);
@@ -124,7 +124,7 @@ public class ManDialogueScreen extends Screen {
         revealed = 0.0F;
         if (lineIndex >= lines.size()) {
             finished = true;
-            PacketDistributor.sendToServer(ManDialogueFinishedPayload.INSTANCE);
+            ClientPlayNetworking.send(ManDialogueFinishedPayload.INSTANCE);
             if (this.minecraft != null) {
                 this.minecraft.setScreen(null);
             }
@@ -142,7 +142,7 @@ public class ManDialogueScreen extends Screen {
         if (!finished) {
             // Dismissed early: put reality back and consume the encounter anyway
             RealityState.setMirrorLevel(0);
-            PacketDistributor.sendToServer(ManDialogueFinishedPayload.INSTANCE);
+            ClientPlayNetworking.send(ManDialogueFinishedPayload.INSTANCE);
             finished = true;
         }
         super.removed();

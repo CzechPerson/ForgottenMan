@@ -16,7 +16,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.client.model.data.ModelData;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -63,7 +62,7 @@ public final class RoomMesh {
                 // No AO, it baked glitchy near-black patches; shading comes from FakeRoomLevel
                 dispatcher.getModelRenderer().tesselateWithoutAO(FakeRoomLevel.INSTANCE,
                         dispatcher.getBlockModel(state), state, pos, pose, builder, true, random,
-                        state.getSeed(pos), OverlayTexture.NO_OVERLAY, ModelData.EMPTY, null);
+                        state.getSeed(pos), OverlayTexture.NO_OVERLAY);
                 pose.popPose();
             }
             MeshData mesh = builder.build();

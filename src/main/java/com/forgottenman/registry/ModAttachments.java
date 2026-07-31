@@ -1,32 +1,37 @@
 package com.forgottenman.registry;
 
 import com.forgottenman.ForgottenMan;
-import net.minecraft.core.BlockPos;
+import com.mojang.serialization.Codec;
+import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry;
+import net.fabricmc.fabric.api.attachment.v1.AttachmentTarget;
+import net.fabricmc.fabric.api.attachment.v1.AttachmentType;
 import net.minecraft.core.GlobalPos;
-import net.minecraft.world.level.Level;
-import net.neoforged.neoforge.attachment.AttachmentType;
-import net.neoforged.neoforge.registries.DeferredRegister;
-import net.neoforged.neoforge.registries.NeoForgeRegistries;
-
-import java.util.function.Supplier;
 
 public final class ModAttachments {
-    public static final DeferredRegister<AttachmentType<?>> ATTACHMENTS =
-            DeferredRegister.create(NeoForgeRegistries.ATTACHMENT_TYPES, ForgottenMan.MOD_ID);
-
-    /** The door the player last entered the tree room through; presence checked with hasData */
-    public static final Supplier<AttachmentType<GlobalPos>> ENTRY_DOOR = ATTACHMENTS.register("entry_door",
-            () -> AttachmentType.builder(() -> GlobalPos.of(Level.OVERWORLD, BlockPos.ZERO))
-                    .serialize(GlobalPos.CODEC)
-                    .copyOnDeath()
-                    .build());
+    /**
+     * The door the player last entered the tree room through; presence checked with
+     * hasAttached. No default value, so an absent attachment reads as "never entered".
+     */
+    public static final AttachmentType<GlobalPos> ENTRY_DOOR = AttachmentRegistry.create(
+            ForgottenMan.id("entry_door"),
+            builder -> builder.persistent(GlobalPos.CODEC).copyOnDeath());
 
     /** Whether this player has talked to the man behind the tree */
-    public static final Supplier<AttachmentType<Boolean>> MET_MAN = ATTACHMENTS.register("met_man",
-            () -> AttachmentType.builder(() -> false)
-                    .serialize(com.mojang.serialization.Codec.BOOL)
-                    .copyOnDeath()
-                    .build());
+    public static final AttachmentType<Boolean> MET_MAN = AttachmentRegistry.create(
+            ForgottenMan.id("met_man"),
+            builder -> builder.initializer(() -> false).persistent(Codec.BOOL).copyOnDeath());
+
+    public static void register() {
+    }
+
+    /** Null-safe read; an absent attachment means they have not met him */
+    public static boolean hasMetMan(AttachmentTarget target) {
+        return Boolean.TRUE.equals(target.getAttached(MET_MAN));
+    }
+
+    public static void setMetMan(AttachmentTarget target, boolean met) {
+        target.setAttached(MET_MAN, met);
+    }
 
     private ModAttachments() {
     }

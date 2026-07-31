@@ -1,13 +1,9 @@
 package com.forgottenman.client;
 
 import com.forgottenman.ForgottenMan;
-import net.minecraft.client.Camera;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.DimensionSpecialEffects;
-import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Matrix4f;
 
 /**
  * Sky effects for the tree room
@@ -36,26 +32,7 @@ public class TreeRoomSpecialEffects extends DimensionSpecialEffects {
         return null;
     }
 
-    @Override
-    public boolean renderSky(ClientLevel level, int ticks, float partialTick, Matrix4f modelViewMatrix,
-                             Camera camera, Matrix4f projectionMatrix, boolean isFoggy, Runnable setupFog) {
-        return true; // Skip vanilla sky rendering
-    }
-
-    @Override
-    public boolean renderClouds(ClientLevel level, int ticks, float partialTick, com.mojang.blaze3d.vertex.PoseStack poseStack,
-                                double camX, double camY, double camZ, Matrix4f modelViewMatrix, Matrix4f projectionMatrix) {
-        return true;
-    }
-
-    @Override
-    public boolean renderSnowAndRain(ClientLevel level, int ticks, float partialTick, LightTexture lightTexture,
-                                     double camX, double camY, double camZ) {
-        return true;
-    }
-
-    @Override
-    public boolean tickRain(ClientLevel level, int ticks, Camera camera) {
-        return true;
-    }
+    // Suppressing the sky, clouds and weather is done by overriding these on NeoForge.
+    // Vanilla has no such hooks, so on Fabric empty sky/cloud/weather renderers are
+    // registered against the dimension in ForgottenManClient instead.
 }

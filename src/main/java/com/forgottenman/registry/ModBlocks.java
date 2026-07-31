@@ -5,20 +5,20 @@ import com.forgottenman.block.MysteriousDoorBlock;
 import com.forgottenman.block.PlumGrassBlock;
 import com.forgottenman.block.TreeLeavesBlock;
 import com.forgottenman.block.VoidWallBlock;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.properties.BlockSetType;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
-import net.neoforged.neoforge.registries.DeferredBlock;
-import net.neoforged.neoforge.registries.DeferredRegister;
+
+import java.util.function.Supplier;
 
 public final class ModBlocks {
-    public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(ForgottenMan.MOD_ID);
-
-    public static final DeferredBlock<MysteriousDoorBlock> MYSTERIOUS_DOOR = BLOCKS.register("mysterious_door",
-            () -> new MysteriousDoorBlock(BlockSetType.DARK_OAK, BlockBehaviour.Properties.of()
+    public static final Supplier<MysteriousDoorBlock> MYSTERIOUS_DOOR = register("mysterious_door",
+            new MysteriousDoorBlock(BlockSetType.DARK_OAK, BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_RED)
                     .strength(3.0F)
                     .noOcclusion()
@@ -27,14 +27,14 @@ public final class ModBlocks {
 
     // Tree room blocks, palette sampled from the game (#612C61 floor, #202040 trunk,
     // #E02040 / #C00080 / #A00080 crown)
-    public static final DeferredBlock<Block> PLUM_GROUND = BLOCKS.register("plum_ground",
-            () -> new Block(BlockBehaviour.Properties.of()
+    public static final Supplier<Block> PLUM_GROUND = register("plum_ground",
+            new Block(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_PURPLE)
                     .strength(1.5F)
                     .sound(SoundType.STONE)));
 
-    public static final DeferredBlock<Block> PLUM_GRASS = BLOCKS.register("plum_grass",
-            () -> new PlumGrassBlock(BlockBehaviour.Properties.of()
+    public static final Supplier<Block> PLUM_GRASS = register("plum_grass",
+            new PlumGrassBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_PURPLE)
                     .replaceable()
                     .noCollission()
@@ -43,26 +43,24 @@ public final class ModBlocks {
                     .pushReaction(PushReaction.DESTROY)));
 
     // Bark shades gradient up the trunk
-    public static final DeferredBlock<Block> VOID_BARK = BLOCKS.register("void_bark",
-            () -> new Block(barkProperties()));
+    public static final Supplier<Block> VOID_BARK = register("void_bark", new Block(barkProperties()));
 
-    public static final DeferredBlock<Block> VOID_BARK_1 = BLOCKS.register("void_bark_1",
-            () -> new Block(barkProperties()));
+    public static final Supplier<Block> VOID_BARK_1 = register("void_bark_1", new Block(barkProperties()));
 
-    public static final DeferredBlock<Block> VOID_BARK_2 = BLOCKS.register("void_bark_2",
-            () -> new Block(barkProperties()));
+    public static final Supplier<Block> VOID_BARK_2 = register("void_bark_2", new Block(barkProperties()));
 
-    public static final DeferredBlock<Block> SCARLET_LEAVES = BLOCKS.register("scarlet_leaves",
-            () -> new TreeLeavesBlock(ModParticles.SCARLET_LEAF, leavesProperties()));
+    public static final Supplier<Block> SCARLET_LEAVES = register("scarlet_leaves",
+            new TreeLeavesBlock(ModParticles.SCARLET_LEAF, leavesProperties()));
 
-    public static final DeferredBlock<Block> MAGENTA_LEAVES = BLOCKS.register("magenta_leaves",
-            () -> new TreeLeavesBlock(ModParticles.MAGENTA_LEAF, leavesProperties()));
+    public static final Supplier<Block> MAGENTA_LEAVES = register("magenta_leaves",
+            new TreeLeavesBlock(ModParticles.MAGENTA_LEAF, leavesProperties()));
 
-    public static final DeferredBlock<Block> DEEP_MAGENTA_LEAVES = BLOCKS.register("deep_magenta_leaves",
-            () -> new TreeLeavesBlock(ModParticles.DEEP_MAGENTA_LEAF, leavesProperties()));
+    public static final Supplier<Block> DEEP_MAGENTA_LEAVES = register("deep_magenta_leaves",
+            new TreeLeavesBlock(ModParticles.DEEP_MAGENTA_LEAF, leavesProperties()));
 
-    public static final DeferredBlock<Block> VOID_WALL = BLOCKS.register("void_wall",
-            () -> new VoidWallBlock(BlockBehaviour.Properties.of()
+    /** Invisible, indestructible, impassable; fills the void around the room */
+    public static final Supplier<Block> VOID_WALL = register("void_wall",
+            new VoidWallBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.COLOR_BLACK)
                     .strength(-1.0F, 3600000.0F)
                     .noLootTable()
@@ -80,6 +78,17 @@ public final class ModBlocks {
                 .mapColor(MapColor.COLOR_RED)
                 .strength(0.4F)
                 .sound(SoundType.WOOL);
+    }
+
+    // Fabric registries are eager; the returned supplier keeps every call site that
+    // used NeoForge's DeferredBlock.get() working unchanged
+    private static <T extends Block> Supplier<T> register(String name, T block) {
+        T registered = Registry.register(BuiltInRegistries.BLOCK, ForgottenMan.id(name), block);
+        return () -> registered;
+    }
+
+    /** Touching this class runs the static initialisers above, which do the registering */
+    public static void register() {
     }
 
     private ModBlocks() {

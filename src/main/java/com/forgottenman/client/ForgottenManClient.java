@@ -1,12 +1,58 @@
 package com.forgottenman.client;
 
-import com.forgottenman.ForgottenMan;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.Mod;
+import com.forgottenman.block.MysteriousDoorBlockEntity;
+import com.forgottenman.client.particle.FallingLeafParticle;
+import com.forgottenman.client.render.DoorPortalRenderer;
+import com.forgottenman.client.render.ManRenderer;
+import com.forgottenman.client.shader.ModShaders;
+import com.forgottenman.network.OpenManDialoguePayload;
+import com.forgottenman.registry.ModDimensions;
+import com.forgottenman.registry.ModEntities;
+import com.forgottenman.registry.ModParticles;
+import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientBlockEntityEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.client.particle.v1.ParticleFactoryRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.DimensionRenderingRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 
-@Mod(value = ForgottenMan.MOD_ID, dist = Dist.CLIENT)
-public class ForgottenManClient {
-    public ForgottenManClient(ModContainer container) {
+public class ForgottenManClient implements ClientModInitializer {
+    @Override
+    public void onInitializeClient() {
+        // The door portal is not a BlockEntityRenderer (see DoorPortalRenderer),
+        // Fancy World Animations cancels those at doors it animates
+        EntityRendererRegistry.register(ModEntities.MAN.get(), ManRenderer::new);
+
+        DimensionRenderingRegistry.registerDimensionEffects(
+                TreeRoomSpecialEffects.ID, new TreeRoomSpecialEffects());
+        // Nothing in the sky but the mirror copies: empty renderers stand in for the
+        // renderSky/renderClouds/renderSnowAndRain overrides NeoForge allows
+        DimensionRenderingRegistry.registerSkyRenderer(ModDimensions.TREE_ROOM, context -> { });
+        DimensionRenderingRegistry.registerCloudRenderer(ModDimensions.TREE_ROOM, context -> { });
+        DimensionRenderingRegistry.registerWeatherRenderer(ModDimensions.TREE_ROOM, context -> { });
+
+        // Vanilla BlockEntity has no onLoad hook, so door tracking is driven from here
+        ClientBlockEntityEvents.BLOCK_ENTITY_LOAD.register((blockEntity, world) -> {
+            if (blockEntity instanceof MysteriousDoorBlockEntity door) {
+                DoorPortalRenderer.track(door);
+            }
+        });
+        ClientBlockEntityEvents.BLOCK_ENTITY_UNLOAD.register((blockEntity, world) -> {
+            if (blockEntity instanceof MysteriousDoorBlockEntity door) {
+                DoorPortalRenderer.untrack(door);
+            }
+        });
+
+        ParticleFactoryRegistry particles = ParticleFactoryRegistry.getInstance();
+        particles.register(ModParticles.SCARLET_LEAF.get(), FallingLeafParticle.Provider::new);
+        particles.register(ModParticles.MAGENTA_LEAF.get(), FallingLeafParticle.Provider::new);
+        particles.register(ModParticles.DEEP_MAGENTA_LEAF.get(), FallingLeafParticle.Provider::new);
+
+        ClientPlayNetworking.registerGlobalReceiver(OpenManDialoguePayload.TYPE,
+                (payload, context) -> context.client().execute(ClientDialogueHandler::openDialogue));
+
+        ModShaders.register();
+        ScreenShake.register();
+        ClientEvents.register();
     }
 }

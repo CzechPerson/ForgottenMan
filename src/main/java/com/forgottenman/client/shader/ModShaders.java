@@ -2,13 +2,8 @@ package com.forgottenman.client.shader;
 
 import com.forgottenman.ForgottenMan;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import net.fabricmc.fabric.api.client.rendering.v1.CoreShaderRegistrationCallback;
 import net.minecraft.client.renderer.ShaderInstance;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RegisterShadersEvent;
-
-import java.io.IOException;
 
 /**
  * Core shaders:
@@ -18,27 +13,23 @@ import java.io.IOException;
  * - "portal_static": dark red static for tree room doorways
  * - "portal_overlay": scanline shimmer over the door portals
  */
-@EventBusSubscriber(modid = ForgottenMan.MOD_ID, value = Dist.CLIENT)
 public final class ModShaders {
     private static ShaderInstance censorShader;
     private static ShaderInstance roomCopyShader;
     private static ShaderInstance portalStaticShader;
     private static ShaderInstance portalOverlayShader;
 
-    @SubscribeEvent
-    static void onRegisterShaders(RegisterShadersEvent event) throws IOException {
-        event.registerShader(
-                new ShaderInstance(event.getResourceProvider(), ForgottenMan.id("censor"), DefaultVertexFormat.POSITION_TEX),
-                shader -> censorShader = shader);
-        event.registerShader(
-                new ShaderInstance(event.getResourceProvider(), ForgottenMan.id("room_copy"), DefaultVertexFormat.BLOCK),
-                shader -> roomCopyShader = shader);
-        event.registerShader(
-                new ShaderInstance(event.getResourceProvider(), ForgottenMan.id("portal_static"), DefaultVertexFormat.POSITION),
-                shader -> portalStaticShader = shader);
-        event.registerShader(
-                new ShaderInstance(event.getResourceProvider(), ForgottenMan.id("portal_overlay"), DefaultVertexFormat.POSITION),
-                shader -> portalOverlayShader = shader);
+    public static void register() {
+        CoreShaderRegistrationCallback.EVENT.register(context -> {
+            context.register(ForgottenMan.id("censor"), DefaultVertexFormat.POSITION_TEX,
+                    shader -> censorShader = shader);
+            context.register(ForgottenMan.id("room_copy"), DefaultVertexFormat.BLOCK,
+                    shader -> roomCopyShader = shader);
+            context.register(ForgottenMan.id("portal_static"), DefaultVertexFormat.POSITION,
+                    shader -> portalStaticShader = shader);
+            context.register(ForgottenMan.id("portal_overlay"), DefaultVertexFormat.POSITION,
+                    shader -> portalOverlayShader = shader);
+        });
     }
 
     public static ShaderInstance getCensorShader() {

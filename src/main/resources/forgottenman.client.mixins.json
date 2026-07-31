@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.forgottenman.mixin.client",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "CameraMixin",
+    "GuiMixin",
+    "LevelRendererMixin",
+    "RenderTargetMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

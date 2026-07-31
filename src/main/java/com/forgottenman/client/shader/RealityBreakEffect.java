@@ -7,16 +7,11 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.PostChain;
 import net.minecraft.resources.ResourceLocation;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.slf4j.Logger;
 
 /**
  * Full-screen post pass
  */
-@EventBusSubscriber(modid = ForgottenMan.MOD_ID, value = Dist.CLIENT)
 public final class RealityBreakEffect {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final ResourceLocation CHAIN_ID = ForgottenMan.id("shaders/post/reality_break.json");
@@ -26,11 +21,8 @@ public final class RealityBreakEffect {
     private static int lastWidth = -1;
     private static int lastHeight = -1;
 
-    @SubscribeEvent
-    static void onRenderLevelStage(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_LEVEL) {
-            return;
-        }
+    /** Runs after the level is drawn, Fabric's closest stage to NeoForge's AFTER_LEVEL */
+    public static void renderAfterLevel() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.level.dimension() != ModDimensions.TREE_ROOM || loadFailed
                 || RealityState.getMirrorLevel() < 2) {

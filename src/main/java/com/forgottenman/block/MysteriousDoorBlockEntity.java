@@ -27,20 +27,6 @@ public class MysteriousDoorBlockEntity extends BlockEntity {
         lastOpenTime = time;
     }
 
-    @Override
-    public void onLoad() {
-        super.onLoad();
-        if (this.level != null && this.level.isClientSide) {
-            // Client class only referenced inside this guarded branch
-            com.forgottenman.client.render.DoorPortalRenderer.track(this);
-        }
-    }
-
-    @Override
-    public void setRemoved() {
-        if (this.level != null && this.level.isClientSide) {
-            com.forgottenman.client.render.DoorPortalRenderer.untrack(this);
-        }
-        super.setRemoved();
-    }
+    // Vanilla has no onLoad hook (that is a NeoForge addition), so the client tracks
+    // doors through ClientBlockEntityEvents in ForgottenManClient instead.
 }

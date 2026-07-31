@@ -14,12 +14,9 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.BlockEvent;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.EntityTickEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -27,7 +24,6 @@ import java.util.List;
 import java.util.UUID;
 import org.jetbrains.annotations.Nullable;
 
-@EventBusSubscriber(modid = ForgottenMan.MOD_ID)
 public final class CommonEvents {
     // portal/trigger.ogg is exactly 4.0s; at pitch 0.5 it lasts 8s (160 ticks)
     private static final float CLAIM_PITCH = 0.5F;
@@ -51,20 +47,18 @@ public final class CommonEvents {
         }
     }
 
-    // nothing in the tree room can be broken, unless you're in creative
-    @SubscribeEvent
-    static void onBlockBreak(BlockEvent.BreakEvent event) {
-        if (event.getLevel() instanceof Level level
-                && level.dimension() == ModDimensions.TREE_ROOM
-                && !event.getPlayer().isCreative()) {
-            event.setCanceled(true);
-        }
+    public static void register() {
+        // nothing in the tree room can be broken, unless you're in creative
+        PlayerBlockBreakEvents.BEFORE.register((level, player, pos, state, blockEntity) ->
+                level.dimension() != ModDimensions.TREE_ROOM || player.isCreative());
+
+        ServerTickEvents.END_SERVER_TICK.register(CommonEvents::onServerTick);
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> PENDING.clear());
     }
 
-    // door recipe
-    @SubscribeEvent
-    static void onEntityTick(EntityTickEvent.Pre event) {
-        if (!(event.getEntity() instanceof ItemEntity item) || item.level().isClientSide) {
+    /** The door recipe, called from ItemEntityMixin since Fabric has no entity tick event */
+    public static void onItemEntityTick(ItemEntity item) {
+        if (item.level().isClientSide) {
             return;
         }
         Level level = item.level();
@@ -87,8 +81,7 @@ public final class CommonEvents {
                 ModSounds.VOID_CLAIM.get(), SoundSource.PLAYERS, 0.9F, CLAIM_PITCH);
     }
 
-    @SubscribeEvent
-    static void onServerTick(ServerTickEvent.Post event) {
+    private static void onServerTick(net.minecraft.server.MinecraftServer server) {
         if (PENDING.isEmpty()) {
             return;
         }
@@ -100,9 +93,9 @@ public final class CommonEvents {
             }
             iterator.remove();
             ServerPlayer player = pending.owner != null
-                    ? event.getServer().getPlayerList().getPlayer(pending.owner) : null;
+                    ? server.getPlayerList().getPlayer(pending.owner) : null;
             ServerLevel level = player != null ? (ServerLevel) player.level()
-                    : event.getServer().getLevel(pending.dimension);
+                    : server.getLevel(pending.dimension);
             if (level == null) {
                 continue;
             }
@@ -115,11 +108,6 @@ public final class CommonEvents {
             level.sendParticles(ParticleTypes.REVERSE_PORTAL,
                     pos.x, pos.y + 0.6, pos.z, 40, 0.3, 0.5, 0.3, 0.05);
         }
-    }
-
-    @SubscribeEvent
-    static void onServerStopped(ServerStoppedEvent event) {
-        PENDING.clear();
     }
 
     private CommonEvents() {

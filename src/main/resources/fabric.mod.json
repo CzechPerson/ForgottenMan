@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "forgottenman",
+  "version": "${version}",
+  "name": "Forgotten Man",
+  "description": "Will you forget me too?",
+  "authors": [
+    "CzechPerson"
+  ],
+  "contributors": [
+    "Garfungus"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "icon": "forgottenman.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.forgottenman.ForgottenMan"
+    ],
+    "client": [
+      "com.forgottenman.client.ForgottenManClient"
+    ]
+  },
+  "mixins": [
+    "forgottenman.mixins.json",
+    {
+      "config": "forgottenman.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "~${minecraft_version}",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
