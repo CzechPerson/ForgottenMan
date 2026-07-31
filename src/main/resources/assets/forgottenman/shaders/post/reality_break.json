@@ -4,7 +4,7 @@
     ],
     "passes": [
         {
-            "name": "forgottenman:reality_break",
+            "name": "forgottenman_reality_break",
             "intarget": "minecraft:main",
             "outtarget": "swap"
         },

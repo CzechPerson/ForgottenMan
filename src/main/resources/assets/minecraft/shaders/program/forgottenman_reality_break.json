@@ -4,8 +4,8 @@
         "srcrgb": "one",
         "dstrgb": "zero"
     },
-    "vertex": "forgottenman:reality_break",
-    "fragment": "forgottenman:reality_break",
+    "vertex": "forgottenman_reality_break",
+    "fragment": "forgottenman_reality_break",
     "attributes": [ "Position" ],
     "samplers": [
         { "name": "DiffuseSampler" }
