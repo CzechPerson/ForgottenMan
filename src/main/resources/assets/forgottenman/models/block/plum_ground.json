@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "top": "forgottenman:block/plum_ground",
+    "side": "forgottenman:block/plum_ground_side",
+    "bottom": "forgottenman:block/plum_ground_side"
+  }
+}

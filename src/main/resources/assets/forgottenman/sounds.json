@@ -1,0 +1,32 @@
+{
+  "man_voice": {
+    "sounds": [
+      { "name": "forgottenman:man_voice", "stream": false }
+    ]
+  },
+  "egg_room": {
+    "sounds": [
+      { "name": "forgottenman:egg_room", "stream": true }
+    ]
+  },
+  "reality_crack": {
+    "sounds": [
+      { "name": "forgottenman:reality_crack", "stream": false }
+    ]
+  },
+  "reality_shatter": {
+    "sounds": [
+      { "name": "forgottenman:reality_shatter", "stream": false }
+    ]
+  },
+  "void_claim": {
+    "sounds": [
+      { "name": "minecraft:portal/trigger", "stream": false }
+    ]
+  },
+  "egg_get": {
+    "sounds": [
+      { "name": "forgottenman:egg_get", "stream": false }
+    ]
+  }
+}
