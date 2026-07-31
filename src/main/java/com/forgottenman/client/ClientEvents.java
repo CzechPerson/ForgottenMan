@@ -45,10 +45,19 @@ public final class ClientEvents {
     private static TreeRoomMusic music;
     private static boolean wasInRoom;
     private static int musicRetryTimer;
+    private static boolean stencilReady;
 
     @SubscribeEvent
     static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
+        // Enabling stencil destroys and recreates the main framebuffer, so it has to
+        // happen between frames. Client ticks run before bindWrite; doing it from the
+        // portal renderer instead deleted the framebuffer mid-draw and broke every
+        // later pass (notably the held item) until the game restarted.
+        if (!stencilReady) {
+            stencilReady = true;
+            mc.getMainRenderTarget().enableStencil();
+        }
         boolean inRoom = mc.level != null && mc.level.dimension() == ModDimensions.TREE_ROOM;
         if (inRoom) {
             mc.getMusicManager().stopPlaying(); // Vanilla music stays out of the void

@@ -5,7 +5,7 @@ import com.forgottenman.block.MysteriousDoorBlockEntity;
 import com.forgottenman.client.shader.ModShaders;
 import com.forgottenman.registry.ModDimensions;
 import com.forgottenman.room.RoomLayout;
-import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
@@ -177,10 +177,8 @@ public final class DoorPortalRenderer {
         if (mesh == null || roomShader == null) {
             return;
         }
-        RenderTarget main = mc.getMainRenderTarget();
-        if (!main.isStencilEnabled()) {
-            main.enableStencil(); // Recreates the framebuffer; portals start next frame
-            return;
+        if (!mc.getMainRenderTarget().isStencilEnabled()) {
+            return; // ClientEvents turns it on between frames; never enable it mid-draw
         }
         Frustum frustum = event.getFrustum();
         Matrix4f proj = new Matrix4f(event.getProjectionMatrix());
@@ -197,8 +195,10 @@ public final class DoorPortalRenderer {
         RenderSystem.enableDepthTest();
         RenderSystem.depthFunc(GL11.GL_LEQUAL);
         GL11.glEnable(GL11.GL_STENCIL_TEST);
+        // Stencil func/mask/op go through GlStateManager, which caches them -- setting
+        // them raw leaves the cache lying and lets state leak into other mods' draws
         // One stencil clear per frame; each doorway gets its own ref so stale masks can't match
-        GL11.glStencilMask(0xFF);
+        GlStateManager._stencilMask(0xFF);
         RenderSystem.clear(GL11.GL_STENCIL_BUFFER_BIT, Minecraft.ON_OSX);
 
         int drawn = 0;
@@ -208,7 +208,7 @@ public final class DoorPortalRenderer {
             }
             // 8-bit stencil, refs wrap at 255
             if (drawn > 0 && drawn % 255 == 0) {
-                GL11.glStencilMask(0xFF);
+                GlStateManager._stencilMask(0xFF);
                 RenderSystem.clear(GL11.GL_STENCIL_BUFFER_BIT, Minecraft.ON_OSX);
             }
             int ref = (drawn % 255) + 1;
@@ -218,17 +218,17 @@ public final class DoorPortalRenderer {
             RenderSystem.disableCull();
 
             // Pass 1: stencil the doorway's visible pixels, no color/depth writes
-            GL11.glStencilMask(0xFF); // Pass 2 of the previous doorway left this at 0x00
-            GL11.glStencilFunc(GL11.GL_ALWAYS, ref, 0xFF);
-            GL11.glStencilOp(GL11.GL_KEEP, GL11.GL_KEEP, GL11.GL_REPLACE);
+            GlStateManager._stencilMask(0xFF); // Pass 2 of the previous doorway left this at 0x00
+            GlStateManager._stencilFunc(GL11.GL_ALWAYS, ref, 0xFF);
+            GlStateManager._stencilOp(GL11.GL_KEEP, GL11.GL_KEEP, GL11.GL_REPLACE);
             RenderSystem.colorMask(false, false, false, false);
             RenderSystem.depthMask(false);
             drawDoorwayQuads(doorway, cam);
 
             // Pass 2: black backdrop inside the mask, depth pushed to the far plane
-            GL11.glStencilFunc(GL11.GL_EQUAL, ref, 0xFF);
-            GL11.glStencilOp(GL11.GL_KEEP, GL11.GL_KEEP, GL11.GL_KEEP);
-            GL11.glStencilMask(0x00);
+            GlStateManager._stencilFunc(GL11.GL_EQUAL, ref, 0xFF);
+            GlStateManager._stencilOp(GL11.GL_KEEP, GL11.GL_KEEP, GL11.GL_KEEP);
+            GlStateManager._stencilMask(0x00);
             RenderSystem.colorMask(true, true, true, true);
             RenderSystem.depthMask(true);
             RenderSystem.depthFunc(GL11.GL_ALWAYS);
@@ -288,7 +288,7 @@ public final class DoorPortalRenderer {
             RenderSystem.colorMask(true, true, true, true);
         }
         GL11.glDisable(GL11.GL_STENCIL_TEST);
-        GL11.glStencilMask(0xFF);
+        GlStateManager._stencilMask(0xFF);
         RenderSystem.enableCull(); // Vanilla default
     }
 
