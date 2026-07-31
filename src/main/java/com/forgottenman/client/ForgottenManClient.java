@@ -6,11 +6,14 @@ import com.forgottenman.client.render.DoorPortalRenderer;
 import com.forgottenman.client.render.ManRenderer;
 import com.forgottenman.client.shader.ModShaders;
 import com.forgottenman.network.OpenManDialoguePayload;
+import com.forgottenman.registry.ModBlocks;
 import com.forgottenman.registry.ModDimensions;
 import com.forgottenman.registry.ModEntities;
 import com.forgottenman.registry.ModParticles;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientBlockEntityEvents;
+import net.minecraft.client.renderer.RenderType;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.particle.v1.ParticleFactoryRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.DimensionRenderingRegistry;
@@ -22,6 +25,11 @@ public class ForgottenManClient implements ClientModInitializer {
         // The door portal is not a BlockEntityRenderer (see DoorPortalRenderer),
         // Fancy World Animations cancels those at doors it animates
         EntityRendererRegistry.register(ModEntities.MAN.get(), ManRenderer::new);
+
+        // The grass model carries "render_type": "cutout", which only NeoForge reads.
+        // Without this the tufts draw on the solid layer and their transparent 87% is
+        // rendered opaque.
+        BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.PLUM_GRASS.get(), RenderType.cutout());
 
         DimensionRenderingRegistry.registerDimensionEffects(
                 TreeRoomSpecialEffects.ID, new TreeRoomSpecialEffects());
