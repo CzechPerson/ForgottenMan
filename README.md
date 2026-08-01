@@ -7,9 +7,7 @@ A small NeoForge/Fabric mod for Minecraft 1.21.1 recreating my favourite moment 
 Minecraft 1.21.1, on either loader:
 
 - **NeoForge** 21.1.233 or newer
-- **Fabric** loader 0.19.3 or newer, plus [Fabric API](https://modrinth.com/mod/fabric-api)
-
-Grab the jar matching your loader. Works fine alongside JEI or EMI if you have them.
+- **Fabric** loader 0.19.3 or newer and [Fabric API](https://modrinth.com/mod/fabric-api)
 
 ## Building from source
 
