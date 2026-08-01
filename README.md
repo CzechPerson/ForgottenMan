@@ -4,11 +4,16 @@ A small NeoForge/Fabric mod for Minecraft 1.21.1 recreating my favourite moment 
 
 ## Requirements
 
-Minecraft 1.21.1 with NeoForge 21.1.233 or newer.
+Minecraft 1.21.1, on either loader:
+
+- **NeoForge** 21.1.233 or newer
+- **Fabric** loader 0.19.3 or newer, plus [Fabric API](https://modrinth.com/mod/fabric-api)
+
+Grab the jar matching your loader. Works fine alongside JEI or EMI if you have them.
 
 ## Building from source
 
-`gradlew build` with Java 21. The jar ends up in `build/libs`.
+`gradlew build` with Java 21. Both jars end up in `build/libs`, one per loader.
 
 ## License
 
