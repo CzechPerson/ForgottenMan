@@ -1,6 +1,6 @@
 # Forgotten Man
 
-A small NeoForge mod for Minecraft 1.21.1 recreating my favourite moment from DELTARUNE chapter 5.
+A small NeoForge/Fabric mod for Minecraft 1.21.1 recreating my favourite moment from DELTARUNE chapter 5.
 
 ## Requirements
 
