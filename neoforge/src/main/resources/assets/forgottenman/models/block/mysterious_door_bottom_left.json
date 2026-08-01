@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/door_bottom_left",
+  "textures": {
+    "bottom": "forgottenman:block/mysterious_door_bottom",
+    "top": "forgottenman:block/mysterious_door_top"
+  }
+}

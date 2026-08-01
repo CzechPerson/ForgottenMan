@@ -1,80 +1,18 @@
 plugins {
-    id 'fabric-loom' version '1.17.17'
-    id 'maven-publish'
+    id 'base'
 }
 
-version = mod_version
-group = mod_group_id
+// Gathers the loader jars into build/libs so a release is one folder, not two.
+// Sources jars stay in the subprojects.
+tasks.register('collectJars', Copy) {
+    description = 'Copies the Fabric and NeoForge jars into the root build/libs'
+    group = 'build'
 
-base {
-    archivesName = mod_id
+    from(project(':fabric').tasks.named('remapJar'))
+    from(project(':neoforge').tasks.named('jar'))
+    into layout.buildDirectory.dir('libs')
 }
 
-repositories {
-    maven {
-        name = 'BlameJared (JEI)'
-        url = 'https://maven.blamejared.com'
-    }
-    maven {
-        name = 'TerraformersMC (EMI)'
-        url = 'https://maven.terraformersmc.com/releases/'
-    }
-}
-
-// Mojang ships Java 21 to end users in 1.21.1, so mods should target Java 21.
-java {
-    toolchain.languageVersion = JavaLanguageVersion.of(21)
-    withSourcesJar()
-}
-
-dependencies {
-    minecraft "com.mojang:minecraft:${minecraft_version}"
-    // Official Mojang mappings, so the sources shared with the NeoForge branch
-    // compile unchanged -- Yarn would rename every vanilla symbol.
-    mappings loom.officialMojangMappings()
-    modImplementation "net.fabricmc:fabric-loader:${loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
-
-    // JEI (optional integration: the @JeiPlugin class only loads when JEI is present)
-    modCompileOnly "mezz.jei:jei-1.21.1-common-api:19.27.0.346"
-    modCompileOnly "mezz.jei:jei-1.21.1-fabric-api:19.27.0.346"
-    // EMI (optional integration: the @EmiEntrypoint class only loads when EMI is present)
-    modCompileOnly "dev.emi:emi-fabric:1.1.24+1.21.1:api"
-}
-
-processResources {
-    inputs.property 'version', project.version
-    inputs.property 'minecraft_version', minecraft_version
-    inputs.property 'loader_version', loader_version
-
-    filesMatching('fabric.mod.json') {
-        expand version: project.version,
-                minecraft_version: minecraft_version,
-                loader_version: loader_version
-    }
-}
-
-tasks.withType(JavaCompile).configureEach {
-    it.options.encoding = 'UTF-8'
-    it.options.release = 21
-}
-
-jar {
-    from('LICENSE') {
-        rename { "${it}_${mod_id}" }
-    }
-}
-
-publishing {
-    publications {
-        register('mavenJava', MavenPublication) {
-            artifactId = mod_id
-            from components.java
-        }
-    }
-    repositories {
-        maven {
-            url "file://${project.projectDir}/repo"
-        }
-    }
+tasks.named('build') {
+    dependsOn 'collectJars'
 }
