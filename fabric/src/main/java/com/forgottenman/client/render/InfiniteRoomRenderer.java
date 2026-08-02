@@ -8,7 +8,6 @@ import com.mojang.blaze3d.shaders.AbstractUniform;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexBuffer;
 import net.minecraft.client.Camera;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.renderer.culling.Frustum;
@@ -48,7 +47,7 @@ public final class InfiniteRoomRenderer {
     }
 
     /** Called by LevelRendererMixin, immediately after the sky is drawn */
-    public static void renderAfterSky(DeltaTracker deltaTracker, Camera camera, Frustum frustum,
+    public static void renderAfterSky(float partialTick, Camera camera, Frustum frustum,
                                       Matrix4f modelViewMatrix, Matrix4f projectionMatrix) {
         Minecraft mc = Minecraft.getInstance();
         int mirrorLevel = RealityState.getMirrorLevel();
@@ -58,7 +57,7 @@ public final class InfiniteRoomRenderer {
             return;
         }
         // Copies glide out from the real room to their slots instead of popping in
-        float dt = deltaTracker.getGameTimeDeltaTicks();
+        float dt = mc.getDeltaFrameTime();
         ringProgress = approach(ringProgress, mirrorLevel >= 1 ? 1.0F : 0.0F, dt * 0.045F);
         hallProgress = approach(hallProgress, mirrorLevel >= 2 ? 1.0F : 0.0F, dt * 0.035F);
         if (ringProgress <= 0.001F && hallProgress <= 0.001F) {
@@ -72,8 +71,7 @@ public final class InfiniteRoomRenderer {
 
         Vec3 cam = camera.getPosition();
         // Shared drift clock, wrapped to keep float precision
-        float time = (float) (mc.level.getGameTime() % 240000L)
-                + deltaTracker.getGameTimeDeltaPartialTick(false);
+        float time = (float) (mc.level.getGameTime() % 240000L) + partialTick;
 
         List<CopyDraw> draws = new ArrayList<>();
         for (int i = -RANGE_XZ; i <= RANGE_XZ; i++) {

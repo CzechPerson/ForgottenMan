@@ -7,7 +7,7 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "forgottenman:void_bark"
+          "name": "forgottenman:plum_ground"
         }
       ],
       "conditions": [
@@ -16,6 +16,5 @@
         }
       ]
     }
-  ],
-  "random_sequence": "forgottenman:blocks/void_bark"
+  ]
 }

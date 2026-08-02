@@ -5,7 +5,7 @@ import com.forgottenman.client.particle.FallingLeafParticle;
 import com.forgottenman.client.render.DoorPortalRenderer;
 import com.forgottenman.client.render.ManRenderer;
 import com.forgottenman.client.shader.ModShaders;
-import com.forgottenman.network.OpenManDialoguePayload;
+import com.forgottenman.network.ModNetworking;
 import com.forgottenman.registry.ModBlocks;
 import com.forgottenman.registry.ModDimensions;
 import com.forgottenman.registry.ModEntities;
@@ -56,8 +56,8 @@ public class ForgottenManClient implements ClientModInitializer {
         particles.register(ModParticles.MAGENTA_LEAF.get(), FallingLeafParticle.Provider::new);
         particles.register(ModParticles.DEEP_MAGENTA_LEAF.get(), FallingLeafParticle.Provider::new);
 
-        ClientPlayNetworking.registerGlobalReceiver(OpenManDialoguePayload.TYPE,
-                (payload, context) -> context.client().execute(ClientDialogueHandler::openDialogue));
+        ClientPlayNetworking.registerGlobalReceiver(ModNetworking.OPEN_MAN_DIALOGUE,
+                (client, handler, buf, sender) -> client.execute(ClientDialogueHandler::openDialogue));
 
         ModShaders.register();
         ScreenShake.register();

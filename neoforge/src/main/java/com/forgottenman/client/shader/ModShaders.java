@@ -3,10 +3,10 @@ package com.forgottenman.client.shader;
 import com.forgottenman.ForgottenMan;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import net.minecraft.client.renderer.ShaderInstance;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RegisterShadersEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.client.event.RegisterShadersEvent;
 
 import java.io.IOException;
 
@@ -18,7 +18,8 @@ import java.io.IOException;
  * - "portal_static": dark red static for tree room doorways
  * - "portal_overlay": scanline shimmer over the door portals
  */
-@EventBusSubscriber(modid = ForgottenMan.MOD_ID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = ForgottenMan.MOD_ID, value = Dist.CLIENT,
+        bus = Mod.EventBusSubscriber.Bus.MOD)
 public final class ModShaders {
     private static ShaderInstance censorShader;
     private static ShaderInstance roomCopyShader;

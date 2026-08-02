@@ -12,14 +12,17 @@ public final class ModAttachments {
      * The door the player last entered the tree room through; presence checked with
      * hasAttached. No default value, so an absent attachment reads as "never entered".
      */
-    public static final AttachmentType<GlobalPos> ENTRY_DOOR = AttachmentRegistry.create(
-            ForgottenMan.id("entry_door"),
-            builder -> builder.persistent(GlobalPos.CODEC).copyOnDeath());
+    public static final AttachmentType<GlobalPos> ENTRY_DOOR = AttachmentRegistry.<GlobalPos>builder()
+            .persistent(GlobalPos.CODEC)
+            .copyOnDeath()
+            .buildAndRegister(ForgottenMan.id("entry_door"));
 
     /** Whether this player has talked to the man behind the tree */
-    public static final AttachmentType<Boolean> MET_MAN = AttachmentRegistry.create(
-            ForgottenMan.id("met_man"),
-            builder -> builder.initializer(() -> false).persistent(Codec.BOOL).copyOnDeath());
+    public static final AttachmentType<Boolean> MET_MAN = AttachmentRegistry.<Boolean>builder()
+            .initializer(() -> false)
+            .persistent(Codec.BOOL)
+            .copyOnDeath()
+            .buildAndRegister(ForgottenMan.id("met_man"));
 
     public static void register() {
     }

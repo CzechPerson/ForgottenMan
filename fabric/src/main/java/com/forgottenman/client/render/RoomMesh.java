@@ -3,7 +3,6 @@ package com.forgottenman.client.render;
 import com.forgottenman.room.RoomLayout;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexBuffer;
@@ -43,7 +42,8 @@ public final class RoomMesh {
 
     private static void bake() {
         try {
-            BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
+            BufferBuilder builder = Tesselator.getInstance().getBuilder();
+            builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
             BlockRenderDispatcher dispatcher = Minecraft.getInstance().getBlockRenderer();
             PoseStack pose = new PoseStack();
             RandomSource random = RandomSource.create(42L);
@@ -65,7 +65,7 @@ public final class RoomMesh {
                         state.getSeed(pos), OverlayTexture.NO_OVERLAY);
                 pose.popPose();
             }
-            MeshData mesh = builder.build();
+            BufferBuilder.RenderedBuffer mesh = builder.endOrDiscardIfEmpty();
             if (mesh == null) {
                 LOGGER.warn("Tree room mesh baked empty");
                 return;

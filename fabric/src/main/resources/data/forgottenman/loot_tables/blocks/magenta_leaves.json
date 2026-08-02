@@ -7,7 +7,7 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "forgottenman:plum_ground"
+          "name": "forgottenman:magenta_leaves"
         }
       ],
       "conditions": [
@@ -16,6 +16,5 @@
         }
       ]
     }
-  ],
-  "random_sequence": "forgottenman:blocks/plum_ground"
+  ]
 }

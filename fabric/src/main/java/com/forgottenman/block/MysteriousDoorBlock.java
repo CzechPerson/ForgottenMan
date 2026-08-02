@@ -21,7 +21,8 @@ import org.jetbrains.annotations.Nullable;
 
 public class MysteriousDoorBlock extends DoorBlock implements EntityBlock {
     public MysteriousDoorBlock(BlockSetType type, Properties properties) {
-        super(type, properties);
+        // 1.20.1 takes the properties first
+        super(properties, type);
     }
 
     @Nullable
@@ -31,7 +32,7 @@ public class MysteriousDoorBlock extends DoorBlock implements EntityBlock {
     }
 
     @Override
-    protected void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
+    public void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
         if (level.isClientSide
                 || !state.getValue(OPEN)
                 || state.getValue(HALF) != DoubleBlockHalf.LOWER

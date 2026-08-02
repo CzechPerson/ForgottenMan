@@ -44,10 +44,10 @@ public class ManRenderer extends EntityRenderer<ManEntity> {
 
         Matrix4f pose = poseStack.last().pose();
         VertexConsumer consumer = bufferSource.getBuffer(ModRenderTypes.CENSOR);
-        consumer.addVertex(pose, -HALF_WIDTH, 0.0F, 0.0F).setUv(0.0F, 1.0F);
-        consumer.addVertex(pose, HALF_WIDTH, 0.0F, 0.0F).setUv(1.0F, 1.0F);
-        consumer.addVertex(pose, HALF_WIDTH, HEIGHT, 0.0F).setUv(1.0F, 0.0F);
-        consumer.addVertex(pose, -HALF_WIDTH, HEIGHT, 0.0F).setUv(0.0F, 0.0F);
+        consumer.vertex(pose, -HALF_WIDTH, 0.0F, 0.0F).uv(0.0F, 1.0F).endVertex();
+        consumer.vertex(pose, HALF_WIDTH, 0.0F, 0.0F).uv(1.0F, 1.0F).endVertex();
+        consumer.vertex(pose, HALF_WIDTH, HEIGHT, 0.0F).uv(1.0F, 0.0F).endVertex();
+        consumer.vertex(pose, -HALF_WIDTH, HEIGHT, 0.0F).uv(0.0F, 0.0F).endVertex();
         poseStack.popPose();
 
         super.render(entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);

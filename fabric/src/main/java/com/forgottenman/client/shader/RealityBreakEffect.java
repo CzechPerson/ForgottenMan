@@ -39,7 +39,7 @@ public final class RealityBreakEffect {
             lastHeight = height;
         }
         // Frame delta in ticks, not the partial tick, or the heartbeat speeds up with FPS
-        chain.process(mc.getTimer().getGameTimeDeltaTicks());
+        chain.process(mc.getDeltaFrameTime());
     }
 
     private static boolean load(Minecraft mc) {

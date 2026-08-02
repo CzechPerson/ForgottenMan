@@ -7,7 +7,15 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 
-public final class ModRenderTypes {
+public final class ModRenderTypes extends RenderType {
+    // 1.20.1 keeps RenderStateShard's NO_CULL protected and exposes it nowhere else.
+    // Extending RenderType (itself a RenderStateShard) is what makes it reachable;
+    // this class is never instantiated.
+    private ModRenderTypes(String name, VertexFormat format, VertexFormat.Mode mode, int bufferSize,
+                           boolean affectsCrumbling, boolean sortOnUpload, Runnable setup, Runnable clear) {
+        super(name, format, mode, bufferSize, affectsCrumbling, sortOnUpload, setup, clear);
+    }
+
     /** The man: procedural quad, opaque with shader-side discard so depth testing hides him behind the trunk */
     public static final RenderType CENSOR = RenderType.create(
             "forgottenman_censor",
@@ -42,7 +50,4 @@ public final class ModRenderTypes {
                     .setShaderState(new RenderStateShard.ShaderStateShard(ModShaders::getPortalStaticShader))
                     .setCullState(RenderStateShard.NO_CULL)
                     .createCompositeState(false));
-
-    private ModRenderTypes() {
-    }
 }

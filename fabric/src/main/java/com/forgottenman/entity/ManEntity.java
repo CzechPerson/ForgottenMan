@@ -1,6 +1,6 @@
 package com.forgottenman.entity;
 
-import com.forgottenman.network.OpenManDialoguePayload;
+import com.forgottenman.network.ModNetworking;
 import com.forgottenman.registry.ModAttachments;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -14,7 +14,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 /**
  * The man behind the tree
@@ -32,8 +31,8 @@ public class ManEntity extends Entity {
     }
 
     @Override
-    protected void defineSynchedData(SynchedEntityData.Builder builder) {
-        builder.define(DATA_VANISH_TICKS, -1);
+    protected void defineSynchedData() {
+        this.entityData.define(DATA_VANISH_TICKS, -1);
     }
 
     public int getVanishTicks() {
@@ -83,7 +82,7 @@ public class ManEntity extends Entity {
     public InteractionResult interact(Player player, InteractionHand hand) {
         if (getVanishTicks() < 0 && player instanceof ServerPlayer serverPlayer
                 && !ModAttachments.hasMetMan(serverPlayer)) {
-            ServerPlayNetworking.send(serverPlayer, OpenManDialoguePayload.INSTANCE);
+            ModNetworking.sendOpenDialogue(serverPlayer);
         }
         return InteractionResult.sidedSuccess(this.level().isClientSide);
     }

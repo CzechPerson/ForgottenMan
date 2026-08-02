@@ -22,9 +22,9 @@ repositories {
     }
 }
 
-// Mojang ships Java 21 to end users in 1.21.1, so mods should target Java 21.
+// 1.20.1 ships on Java 17.
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
     withSourcesJar()
 }
 
@@ -37,10 +37,10 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
 
     // JEI (optional integration: the @JeiPlugin class only loads when JEI is present)
-    modCompileOnly "mezz.jei:jei-1.21.1-common-api:19.27.0.346"
-    modCompileOnly "mezz.jei:jei-1.21.1-fabric-api:19.27.0.346"
+    modCompileOnly "mezz.jei:jei-1.20.1-common-api:15.21.0.148"
+    modCompileOnly "mezz.jei:jei-1.20.1-fabric-api:15.21.0.148"
     // EMI (optional integration: the @EmiEntrypoint class only loads when EMI is present)
-    modCompileOnly "dev.emi:emi-fabric:1.1.24+1.21.1:api"
+    modCompileOnly "dev.emi:emi-fabric:1.1.24+1.20.1:api"
 }
 
 processResources {
@@ -57,7 +57,7 @@ processResources {
 
 tasks.withType(JavaCompile).configureEach {
     it.options.encoding = 'UTF-8'
-    it.options.release = 21
+    it.options.release = 17
 }
 
 jar {

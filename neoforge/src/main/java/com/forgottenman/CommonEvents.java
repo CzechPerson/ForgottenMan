@@ -14,12 +14,12 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.BlockEvent;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.EntityTickEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.event.level.BlockEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -27,13 +27,16 @@ import java.util.List;
 import java.util.UUID;
 import org.jetbrains.annotations.Nullable;
 
-@EventBusSubscriber(modid = ForgottenMan.MOD_ID)
+@Mod.EventBusSubscriber(modid = ForgottenMan.MOD_ID)
 public final class CommonEvents {
     // portal/trigger.ogg is exactly 4.0s; at pitch 0.5 it lasts 8s (160 ticks)
     private static final float CLAIM_PITCH = 0.5F;
     private static final int RETURN_DELAY_TICKS = 164;
 
     private static final List<PendingDoor> PENDING = new ArrayList<>();
+    // 1.20.1 Forge has no per-entity tick event, so thrown doors are picked up as
+    // they enter the world and watched from the server tick until they clear the void
+    private static final List<ItemEntity> FALLING_DOORS = new ArrayList<>();
 
     private static final class PendingDoor {
         final ResourceKey<Level> dimension;
@@ -63,32 +66,56 @@ public final class CommonEvents {
 
     // door recipe
     @SubscribeEvent
-    static void onEntityTick(EntityTickEvent.Pre event) {
-        if (!(event.getEntity() instanceof ItemEntity item) || item.level().isClientSide) {
+    static void onEntityJoinLevel(EntityJoinLevelEvent event) {
+        if (event.getLevel().isClientSide || !(event.getEntity() instanceof ItemEntity item)) {
             return;
         }
-        Level level = item.level();
-        if (item.getY() >= level.getMinBuildHeight() - 8) {
-            return;
+        // mysterious doors are in #minecraft:doors too, so the void claims and
+        // returns those as well instead of eating them
+        if (item.getItem().is(ItemTags.DOORS)) {
+            FALLING_DOORS.add(item);
         }
-        ItemStack stack = item.getItem();
-        if (stack.isEmpty() || !stack.is(ItemTags.DOORS)) {
-            return; // mysterious doors are in #minecraft:doors too, so the void
-                    // claims and returns those as well instead of eating them
-        }
-        Entity owner = item.getOwner();
-        Vec3 fallback = owner != null ? owner.position()
-                : Vec3.atBottomCenterOf(((ServerLevel) level).getSharedSpawnPos());
-        PENDING.add(new PendingDoor(level.dimension(),
-                owner != null ? owner.getUUID() : null, fallback, stack.getCount()));
-        item.discard();
-        // play the claim where the thrower stands, not down in the void
-        level.playSound(null, fallback.x, fallback.y, fallback.z,
-                ModSounds.VOID_CLAIM.get(), SoundSource.PLAYERS, 0.9F, CLAIM_PITCH);
     }
 
     @SubscribeEvent
-    static void onServerTick(ServerTickEvent.Post event) {
+    static void onServerTick(TickEvent.ServerTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) {
+            return;
+        }
+        claimFallenDoors();
+        returnClaimedDoors(event);
+    }
+
+    private static void claimFallenDoors() {
+        Iterator<ItemEntity> iterator = FALLING_DOORS.iterator();
+        while (iterator.hasNext()) {
+            ItemEntity item = iterator.next();
+            Level level = item.level();
+            if (item.isRemoved() || level.isClientSide) {
+                iterator.remove();
+                continue;
+            }
+            if (item.getY() >= level.getMinBuildHeight() - 8) {
+                continue;
+            }
+            iterator.remove();
+            ItemStack stack = item.getItem();
+            if (stack.isEmpty()) {
+                continue;
+            }
+            Entity owner = item.getOwner();
+            Vec3 fallback = owner != null ? owner.position()
+                    : Vec3.atBottomCenterOf(((ServerLevel) level).getSharedSpawnPos());
+            PENDING.add(new PendingDoor(level.dimension(),
+                    owner != null ? owner.getUUID() : null, fallback, stack.getCount()));
+            item.discard();
+            // play the claim where the thrower stands, not down in the void
+            level.playSound(null, fallback.x, fallback.y, fallback.z,
+                    ModSounds.VOID_CLAIM.get(), SoundSource.PLAYERS, 0.9F, CLAIM_PITCH);
+        }
+    }
+
+    private static void returnClaimedDoors(TickEvent.ServerTickEvent event) {
         if (PENDING.isEmpty()) {
             return;
         }
@@ -120,6 +147,7 @@ public final class CommonEvents {
     @SubscribeEvent
     static void onServerStopped(ServerStoppedEvent event) {
         PENDING.clear();
+        FALLING_DOORS.clear();
     }
 
     private CommonEvents() {

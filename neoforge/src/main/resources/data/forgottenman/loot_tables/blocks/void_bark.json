@@ -7,7 +7,7 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "forgottenman:deep_magenta_leaves"
+          "name": "forgottenman:void_bark"
         }
       ],
       "conditions": [
@@ -16,6 +16,5 @@
         }
       ]
     }
-  ],
-  "random_sequence": "forgottenman:blocks/deep_magenta_leaves"
+  ]
 }

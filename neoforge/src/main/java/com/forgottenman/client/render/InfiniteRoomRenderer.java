@@ -14,10 +14,10 @@ import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 
@@ -34,7 +34,7 @@ import java.util.List;
  * room occludes them later. Copies are gathered and culled first, then drawn front
  * to back.
  */
-@EventBusSubscriber(modid = ForgottenMan.MOD_ID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = ForgottenMan.MOD_ID, value = Dist.CLIENT)
 public final class InfiniteRoomRenderer {
     private static final int RANGE_XZ = 4;
     private static final int RANGE_Y = 1;
@@ -64,7 +64,7 @@ public final class InfiniteRoomRenderer {
             return;
         }
         // Copies glide out from the real room to their slots instead of popping in
-        float dt = event.getPartialTick().getGameTimeDeltaTicks();
+        float dt = mc.getDeltaFrameTime();
         ringProgress = approach(ringProgress, mirrorLevel >= 1 ? 1.0F : 0.0F, dt * 0.045F);
         hallProgress = approach(hallProgress, mirrorLevel >= 2 ? 1.0F : 0.0F, dt * 0.035F);
         if (ringProgress <= 0.001F && hallProgress <= 0.001F) {
@@ -79,8 +79,7 @@ public final class InfiniteRoomRenderer {
         Vec3 cam = event.getCamera().getPosition();
         Frustum frustum = event.getFrustum();
         // Shared drift clock, wrapped to keep float precision
-        float time = (float) (mc.level.getGameTime() % 240000L)
-                + event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float time = (float) (mc.level.getGameTime() % 240000L) + event.getPartialTick();
 
         List<CopyDraw> draws = new ArrayList<>();
         for (int i = -RANGE_XZ; i <= RANGE_XZ; i++) {
@@ -131,7 +130,8 @@ public final class InfiniteRoomRenderer {
         // Front to back, far copies fail depth early
         draws.sort(Comparator.comparingDouble(CopyDraw::distSq));
 
-        Matrix4f baseRotation = event.getModelViewMatrix();
+        // In 1.20.1 the level pose stack already carries the camera rotation
+        Matrix4f baseRotation = event.getPoseStack().last().pose();
         Matrix4f projection = new Matrix4f(event.getProjectionMatrix());
 
         RenderSystem.setShaderTexture(0, InventoryMenu.BLOCK_ATLAS);

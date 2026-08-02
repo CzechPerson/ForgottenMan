@@ -1,8 +1,7 @@
 package com.forgottenman.client.gui;
 
 import com.forgottenman.ForgottenMan;
-import com.forgottenman.network.GiveEggPayload;
-import com.forgottenman.network.ManDialogueFinishedPayload;
+import com.forgottenman.network.ModNetworking;
 import com.forgottenman.network.RealityState;
 import com.forgottenman.registry.ModSounds;
 import net.minecraft.client.gui.GuiGraphics;
@@ -13,7 +12,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -111,7 +109,7 @@ public class ManDialogueScreen extends Screen {
         // Story beats
         switch (lineIndex) {
             case 1 -> // "(He offers you something.)"
-                    PacketDistributor.sendToServer(GiveEggPayload.INSTANCE);
+                    ModNetworking.sendGiveEgg();
             case 3 -> { // "(He pointed into the distance.)"
                 RealityState.setMirrorLevel(1);
                 play(ModSounds.REALITY_CRACK.get(), 1.0F, 1.0F);
@@ -124,7 +122,7 @@ public class ManDialogueScreen extends Screen {
         revealed = 0.0F;
         if (lineIndex >= lines.size()) {
             finished = true;
-            PacketDistributor.sendToServer(ManDialogueFinishedPayload.INSTANCE);
+            ModNetworking.sendDialogueFinished();
             if (this.minecraft != null) {
                 this.minecraft.setScreen(null);
             }
@@ -142,7 +140,7 @@ public class ManDialogueScreen extends Screen {
         if (!finished) {
             // Dismissed early: put reality back and consume the encounter anyway
             RealityState.setMirrorLevel(0);
-            PacketDistributor.sendToServer(ManDialogueFinishedPayload.INSTANCE);
+            ModNetworking.sendDialogueFinished();
             finished = true;
         }
         super.removed();

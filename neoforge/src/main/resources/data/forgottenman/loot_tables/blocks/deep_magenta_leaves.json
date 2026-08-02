@@ -7,7 +7,7 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "forgottenman:scarlet_leaves"
+          "name": "forgottenman:deep_magenta_leaves"
         }
       ],
       "conditions": [
@@ -16,6 +16,5 @@
         }
       ]
     }
-  ],
-  "random_sequence": "forgottenman:blocks/scarlet_leaves"
+  ]
 }

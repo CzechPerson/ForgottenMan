@@ -55,12 +55,6 @@ public final class FakeRoomLevel implements BlockAndTintGetter {
     }
 
     @Override
-    public float getShade(float normalX, float normalY, float normalZ, boolean shade) {
-        // NeoForge's quad lighters shade through this overload; route it to the values above
-        return getShade(Direction.getNearest(normalX, normalY, normalZ), shade);
-    }
-
-    @Override
     public int getBrightness(LightLayer lightType, BlockPos pos) {
         return 15;
     }

@@ -1,14 +1,14 @@
 package com.forgottenman.client;
 
 import com.forgottenman.ForgottenMan;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.ViewportEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.client.event.ViewportEvent;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.fml.common.Mod;
 
 /** Camera shake: layered sine noise on pitch/yaw/roll, decaying over the duration */
-@EventBusSubscriber(modid = ForgottenMan.MOD_ID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = ForgottenMan.MOD_ID, value = Dist.CLIENT)
 public final class ScreenShake {
     private static int duration;
     private static int ticksLeft;
@@ -22,8 +22,8 @@ public final class ScreenShake {
     }
 
     @SubscribeEvent
-    static void onClientTick(ClientTickEvent.Post event) {
-        if (ticksLeft > 0) {
+    static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase == TickEvent.Phase.END && ticksLeft > 0) {
             ticksLeft--;
         }
     }

@@ -1,8 +1,9 @@
 package com.forgottenman.client.gui;
 
 import com.forgottenman.ForgottenMan;
-import com.forgottenman.network.GiveEggPayload;
-import com.forgottenman.network.ManDialogueFinishedPayload;
+import com.forgottenman.network.ModNetworking;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import com.forgottenman.network.RealityState;
 import com.forgottenman.registry.ModSounds;
 import net.minecraft.client.gui.GuiGraphics;
@@ -13,7 +14,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -111,7 +111,7 @@ public class ManDialogueScreen extends Screen {
         // Story beats
         switch (lineIndex) {
             case 1 -> // "(He offers you something.)"
-                    ClientPlayNetworking.send(GiveEggPayload.INSTANCE);
+                    ClientPlayNetworking.send(ModNetworking.GIVE_EGG, PacketByteBufs.empty());
             case 3 -> { // "(He pointed into the distance.)"
                 RealityState.setMirrorLevel(1);
                 play(ModSounds.REALITY_CRACK.get(), 1.0F, 1.0F);
@@ -124,7 +124,7 @@ public class ManDialogueScreen extends Screen {
         revealed = 0.0F;
         if (lineIndex >= lines.size()) {
             finished = true;
-            ClientPlayNetworking.send(ManDialogueFinishedPayload.INSTANCE);
+            ClientPlayNetworking.send(ModNetworking.MAN_DIALOGUE_FINISHED, PacketByteBufs.empty());
             if (this.minecraft != null) {
                 this.minecraft.setScreen(null);
             }
@@ -142,7 +142,7 @@ public class ManDialogueScreen extends Screen {
         if (!finished) {
             // Dismissed early: put reality back and consume the encounter anyway
             RealityState.setMirrorLevel(0);
-            ClientPlayNetworking.send(ManDialogueFinishedPayload.INSTANCE);
+            ClientPlayNetworking.send(ModNetworking.MAN_DIALOGUE_FINISHED, PacketByteBufs.empty());
             finished = true;
         }
         super.removed();

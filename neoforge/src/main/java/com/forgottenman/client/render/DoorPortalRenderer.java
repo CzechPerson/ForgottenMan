@@ -10,7 +10,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
+import com.mojang.blaze3d.vertex.VertexSorting;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -27,11 +27,11 @@ import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.ModList;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 
@@ -53,7 +53,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * later out of the doorway)
  * A double door counts as one doorway
  */
-@EventBusSubscriber(modid = ForgottenMan.MOD_ID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = ForgottenMan.MOD_ID, value = Dist.CLIENT)
 public final class DoorPortalRenderer {
     // Mid-plane offsets of the 3/16-thick closed door panel
     private static final float PLANE_NEAR = 1.5F / 16.0F;
@@ -91,7 +91,7 @@ public final class DoorPortalRenderer {
         if (mc.level == null) {
             return;
         }
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        float partialTick = event.getPartialTick();
         long gameTime = mc.level.getGameTime();
         Vec3 cam = event.getCamera().getPosition();
         boolean inTreeRoom = mc.level.dimension() == ModDimensions.TREE_ROOM;
@@ -245,7 +245,7 @@ public final class DoorPortalRenderer {
             boolean frontSide = cam.subtract(doorway.anchor()).dot(facingVec) >= 0.0;
             Direction entering = frontSide ? doorway.facing().getOpposite() : doorway.facing();
             float rad = (float) Math.toRadians(ROOM_ENTRY_YAW - entering.toYRot());
-            Matrix4f modelView = new Matrix4f(event.getModelViewMatrix())
+            Matrix4f modelView = new Matrix4f(event.getPoseStack().last().pose())
                     .translate((float) (doorway.anchor().x - cam.x),
                             (float) (doorway.anchor().y - cam.y),
                             (float) (doorway.anchor().z - cam.z))
@@ -266,11 +266,11 @@ public final class DoorPortalRenderer {
                 RenderSystem.enableBlend();
                 RenderSystem.defaultBlendFunc();
                 RenderSystem.depthMask(false);
-                BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
+                BufferBuilder builder = beginQuads();
                 for (MysteriousDoorBlockEntity door : doorway.doors()) {
                     addQuad(builder, door, cam);
                 }
-                MeshData quadMesh = builder.build();
+                BufferBuilder.RenderedBuffer quadMesh = builder.endOrDiscardIfEmpty();
                 if (quadMesh != null) {
                     RenderSystem.setShader(ModShaders::getPortalOverlayShader);
                     BufferUploader.drawWithShader(quadMesh);
@@ -304,11 +304,11 @@ public final class DoorPortalRenderer {
 
     // Doorway quads in the closed-panel plane
     private static void drawDoorwayQuads(Doorway doorway, Vec3 cam) {
-        BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
+        BufferBuilder builder = beginQuads();
         for (MysteriousDoorBlockEntity door : doorway.doors()) {
             addQuad(builder, door, cam);
         }
-        MeshData mesh = builder.build();
+        BufferBuilder.RenderedBuffer mesh = builder.endOrDiscardIfEmpty();
         if (mesh != null) {
             RenderSystem.setShader(GameRenderer::getPositionShader);
             BufferUploader.drawWithShader(mesh);
@@ -317,14 +317,11 @@ public final class DoorPortalRenderer {
 
     // Static for tree room doors, there's no destination mesh to show
     private static void drawStatic(List<MysteriousDoorBlockEntity> doors, Vec3 cam) {
-        BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
+        BufferBuilder builder = beginQuads();
         for (MysteriousDoorBlockEntity door : doors) {
             addQuad(builder, door, cam);
         }
-        MeshData mesh = builder.build();
-        if (mesh != null) {
-            ModRenderTypes.PORTAL_STATIC.draw(mesh);
-        }
+        ModRenderTypes.PORTAL_STATIC.end(builder, VertexSorting.DISTANCE_TO_ORIGIN);
     }
 
     private static void addQuad(BufferBuilder builder, MysteriousDoorBlockEntity door, Vec3 cam) {
@@ -344,17 +341,24 @@ public final class DoorPortalRenderer {
     }
 
     private static void quadZ(BufferBuilder builder, float x, float y, float z) {
-        builder.addVertex(x, y, z);
-        builder.addVertex(x + 1.0F, y, z);
-        builder.addVertex(x + 1.0F, y + 2.0F, z);
-        builder.addVertex(x, y + 2.0F, z);
+        builder.vertex(x, y, z).endVertex();
+        builder.vertex(x + 1.0F, y, z).endVertex();
+        builder.vertex(x + 1.0F, y + 2.0F, z).endVertex();
+        builder.vertex(x, y + 2.0F, z).endVertex();
     }
 
     private static void quadX(BufferBuilder builder, float x, float y, float z) {
-        builder.addVertex(x, y, z);
-        builder.addVertex(x, y, z + 1.0F);
-        builder.addVertex(x, y + 2.0F, z + 1.0F);
-        builder.addVertex(x, y + 2.0F, z);
+        builder.vertex(x, y, z).endVertex();
+        builder.vertex(x, y, z + 1.0F).endVertex();
+        builder.vertex(x, y + 2.0F, z + 1.0F).endVertex();
+        builder.vertex(x, y + 2.0F, z).endVertex();
+    }
+
+    // 1.20.1 has a single shared builder rather than Tesselator.begin per draw
+    private static BufferBuilder beginQuads() {
+        BufferBuilder builder = Tesselator.getInstance().getBuilder();
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION);
+        return builder;
     }
 
     private DoorPortalRenderer() {

@@ -21,7 +21,8 @@ import org.jetbrains.annotations.Nullable;
 
 public class MysteriousDoorBlock extends DoorBlock implements EntityBlock {
     public MysteriousDoorBlock(BlockSetType type, Properties properties) {
-        super(type, properties);
+        // 1.20.1 takes the properties first
+        super(properties, type);
     }
 
     @Nullable
@@ -31,7 +32,7 @@ public class MysteriousDoorBlock extends DoorBlock implements EntityBlock {
     }
 
     @Override
-    protected void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
+    public void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
         if (level.isClientSide
                 || !state.getValue(OPEN)
                 || state.getValue(HALF) != DoubleBlockHalf.LOWER
@@ -51,10 +52,10 @@ public class MysteriousDoorBlock extends DoorBlock implements EntityBlock {
                 return;
             }
             player.setPortalCooldown();
-            player.setData(ModAttachments.ENTRY_DOOR.get(), GlobalPos.of(level.dimension(), doorPos.immutable()));
-            if (player.getData(ModAttachments.MET_MAN.get())) {
+            ModAttachments.setEntryDoor(player, GlobalPos.of(level.dimension(), doorPos.immutable()));
+            if (ModAttachments.hasMetMan(player)) {
                 // A fresh door begins a fresh cycle
-                player.setData(ModAttachments.MET_MAN.get(), false);
+                ModAttachments.setMetMan(player, false);
                 RoomLayout.place(target);
             } else if (!RoomLayout.isPlaced(target)) {
                 RoomLayout.place(target);
@@ -68,8 +69,8 @@ public class MysteriousDoorBlock extends DoorBlock implements EntityBlock {
 
     // Back to the door you came through, if it still exists
     private static void returnThroughRememberedDoor(ServerPlayer player, MinecraftServer server) {
-        if (player.hasData(ModAttachments.ENTRY_DOOR.get())) {
-            GlobalPos entry = player.getData(ModAttachments.ENTRY_DOOR.get());
+        GlobalPos entry = ModAttachments.getEntryDoor(player);
+        if (entry != null) {
             ServerLevel target = server.getLevel(entry.dimension());
             if (target != null) {
                 BlockState doorState = target.getBlockState(entry.pos());
@@ -79,10 +80,10 @@ public class MysteriousDoorBlock extends DoorBlock implements EntityBlock {
                     player.setPortalCooldown();
                     float yaw = exit.equals(entry.pos().relative(facing)) ? facing.toYRot() : facing.getOpposite().toYRot();
                     player.teleportTo(target, exit.getX() + 0.5, exit.getY(), exit.getZ() + 0.5, yaw, player.getXRot());
-                    if (player.getData(ModAttachments.MET_MAN.get())) {
+                    if (ModAttachments.hasMetMan(player)) {
                         // The door served its purpose
                         target.destroyBlock(entry.pos(), false);
-                        player.removeData(ModAttachments.ENTRY_DOOR.get());
+                        ModAttachments.clearEntryDoor(player);
                     }
                     return;
                 }
