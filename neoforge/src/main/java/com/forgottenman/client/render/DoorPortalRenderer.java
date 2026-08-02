@@ -8,6 +8,7 @@ import com.forgottenman.room.RoomLayout;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexSorting;
@@ -124,7 +125,7 @@ public final class DoorPortalRenderer {
         }
 
         if (inTreeRoom) {
-            drawStatic(visible, cam);
+            drawStatic(visible, cam, event.getPoseStack().last().pose());
             return;
         }
         renderPortals(groupIntoDoorways(visible), event, cam);
@@ -200,6 +201,7 @@ public final class DoorPortalRenderer {
         // One stencil clear per frame; each doorway gets its own ref so stale masks can't match
         GlStateManager._stencilMask(0xFF);
         RenderSystem.clear(GL11.GL_STENCIL_BUFFER_BIT, Minecraft.ON_OSX);
+        pushCameraModelView(event.getPoseStack().last().pose());
 
         int drawn = 0;
         for (Doorway doorway : doorways) {
@@ -287,6 +289,7 @@ public final class DoorPortalRenderer {
             drawDoorwayQuads(doorway, cam);
             RenderSystem.colorMask(true, true, true, true);
         }
+        popCameraModelView();
         GL11.glDisable(GL11.GL_STENCIL_TEST);
         GlStateManager._stencilMask(0xFF);
         RenderSystem.enableCull(); // Vanilla default
@@ -316,12 +319,14 @@ public final class DoorPortalRenderer {
     }
 
     // Static for tree room doors, there's no destination mesh to show
-    private static void drawStatic(List<MysteriousDoorBlockEntity> doors, Vec3 cam) {
+    private static void drawStatic(List<MysteriousDoorBlockEntity> doors, Vec3 cam, Matrix4f cameraMatrix) {
+        pushCameraModelView(cameraMatrix);
         BufferBuilder builder = beginQuads();
         for (MysteriousDoorBlockEntity door : doors) {
             addQuad(builder, door, cam);
         }
         ModRenderTypes.PORTAL_STATIC.end(builder, VertexSorting.DISTANCE_TO_ORIGIN);
+        popCameraModelView();
     }
 
     private static void addQuad(BufferBuilder builder, MysteriousDoorBlockEntity door, Vec3 cam) {
@@ -352,6 +357,23 @@ public final class DoorPortalRenderer {
         builder.vertex(x, y, z + 1.0F).endVertex();
         builder.vertex(x, y + 2.0F, z + 1.0F).endVertex();
         builder.vertex(x, y + 2.0F, z).endVertex();
+    }
+
+    // 1.20.1 pops the RenderSystem model-view back to identity at the end of every
+    // chunk layer, so by this stage BufferUploader would draw the doorway quads in
+    // screen space rather than at the door. The camera matrix has to go back on
+    // around anything drawn through the global state. The room mesh is unaffected --
+    // it takes its matrix explicitly.
+    private static void pushCameraModelView(Matrix4f cameraMatrix) {
+        PoseStack modelView = RenderSystem.getModelViewStack();
+        modelView.pushPose();
+        modelView.mulPoseMatrix(cameraMatrix);
+        RenderSystem.applyModelViewMatrix();
+    }
+
+    private static void popCameraModelView() {
+        RenderSystem.getModelViewStack().popPose();
+        RenderSystem.applyModelViewMatrix();
     }
 
     // 1.20.1 has a single shared builder rather than Tesselator.begin per draw

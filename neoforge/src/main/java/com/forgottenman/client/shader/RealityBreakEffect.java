@@ -46,8 +46,12 @@ public final class RealityBreakEffect {
             lastWidth = width;
             lastHeight = height;
         }
-        // Frame delta in ticks, not the partial tick, or the heartbeat speeds up with FPS
-        chain.process(mc.getDeltaFrameTime());
+        // 1.20.1's PostChain treats this as a timestamp, not a delta: it keeps the
+        // previous value and advances its clock by the difference, rolling over when
+        // the partial tick wraps at a tick boundary. Feeding it a frame delta makes
+        // every shrinking frame look like a wrap and jump the clock a whole tick, so
+        // the heartbeat races and scales with FPS. (1.21.1 wants the delta instead.)
+        chain.process(mc.getFrameTime());
     }
 
     private static boolean load(Minecraft mc) {
