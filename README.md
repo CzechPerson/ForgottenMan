@@ -4,14 +4,14 @@ A small NeoForge/Fabric mod for Minecraft recreating my favourite moment from DE
 
 ## Requirements
 
-Minecraft **1.21.1** or **1.20.1**, on either loader. Take the jar that matches both.
+Minecraft **1.21.1** or **1.20.1**
 
 | Minecraft | NeoForge | Fabric |
 | --- | --- | --- |
 | 1.21.1 | 21.1.233 or newer | loader 0.19.3 or newer |
 | 1.20.1 | 47.1.106 or newer | loader 0.16.14 or newer |
 
-Fabric also wants [Fabric API](https://modrinth.com/mod/fabric-api). On 1.20.1 the NeoForge jar runs on MinecraftForge 47 as well — the two share an API on that version.
+Fabric also wants [Fabric API](https://modrinth.com/mod/fabric-api).
 
 ## Building from source
 
