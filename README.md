@@ -1,17 +1,17 @@
 # Forgotten Man
 
-A small NeoForge/Fabric mod for Minecraft 1.21.1 recreating my favourite moment from DELTARUNE chapter 5.
+A small NeoForge/Fabric mod for Minecraft 1.20.1 recreating my favourite moment from DELTARUNE chapter 5.
 
 ## Requirements
 
-Minecraft 1.21.1, on either loader:
+Minecraft 1.20.1, on either loader:
 
-- **NeoForge** 21.1.233 or newer
-- **Fabric** loader 0.19.3 or newer and [Fabric API](https://modrinth.com/mod/fabric-api)
+- **NeoForge** 47.1.106 or newer. Forge 47 works too, the two share an API on this version
+- **Fabric** loader 0.16.14 or newer and [Fabric API](https://modrinth.com/mod/fabric-api)
 
 ## Building from source
 
-`gradlew build` with Java 21. Both jars end up in `build/libs`, one per loader.
+`gradlew build` with Java 17. Both jars end up in `build/libs`, one per loader.
 
 ## License
 
