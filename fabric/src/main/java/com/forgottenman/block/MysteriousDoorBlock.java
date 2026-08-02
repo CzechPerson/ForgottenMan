@@ -76,9 +76,11 @@ public class MysteriousDoorBlock extends DoorBlock implements EntityBlock {
                 if (doorState.getBlock() instanceof MysteriousDoorBlock) {
                     Direction facing = doorState.getValue(FACING);
                     BlockPos exit = findExitSpot(target, entry.pos(), facing);
-                    player.setPortalCooldown();
+                    // Yaw comes from the spot we picked, before any lift
                     float yaw = exit.equals(entry.pos().relative(facing)) ? facing.toYRot() : facing.getOpposite().toYRot();
-                    player.teleportTo(target, exit.getX() + 0.5, exit.getY(), exit.getZ() + 0.5, yaw, player.getXRot());
+                    BlockPos safe = liftClear(target, exit);
+                    player.setPortalCooldown();
+                    player.teleportTo(target, safe.getX() + 0.5, safe.getY(), safe.getZ() + 0.5, yaw, player.getXRot());
                     if (ModAttachments.hasMetMan(player)) {
                         // The door served its purpose
                         target.destroyBlock(entry.pos(), false);
@@ -94,7 +96,7 @@ public class MysteriousDoorBlock extends DoorBlock implements EntityBlock {
             return;
         }
         player.setPortalCooldown();
-        BlockPos spawn = overworld.getSharedSpawnPos();
+        BlockPos spawn = liftClear(overworld, overworld.getSharedSpawnPos());
         player.teleportTo(overworld, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5,
                 player.getYRot(), player.getXRot());
     }
@@ -110,6 +112,18 @@ public class MysteriousDoorBlock extends DoorBlock implements EntityBlock {
             return back;
         }
         return front;
+    }
+
+    // Neither exit spot is guaranteed clear -- a door can be walled in on both
+    // sides, and a world spawn is stored at ground level, not above it. Vanilla
+    // steps the player up until they fit when it places them at spawn; same here,
+    // otherwise the trip home ends inside the terrain.
+    private static BlockPos liftClear(ServerLevel level, BlockPos feet) {
+        BlockPos pos = feet;
+        while (pos.getY() < level.getMaxBuildHeight() - 1 && !isPassable(level, pos)) {
+            pos = pos.above();
+        }
+        return pos;
     }
 
     private static boolean isPassable(ServerLevel level, BlockPos feet) {
