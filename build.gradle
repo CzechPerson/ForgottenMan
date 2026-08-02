@@ -8,8 +8,11 @@ tasks.register('collectJars', Copy) {
     description = 'Copies the Fabric and NeoForge jars into the root build/libs'
     group = 'build'
 
+    // Both loaders need their remapped output, not the dev jar: Fabric's is named
+    // after intermediary, and 1.20.1 Forge runs on SRG. Taking 'jar' here would
+    // quietly ship a jar that only loads in a dev environment.
     from(project(':fabric').tasks.named('remapJar'))
-    from(project(':neoforge').tasks.named('jar'))
+    from(project(':neoforge').tasks.named('reobfJar'))
     into layout.buildDirectory.dir('libs')
 }
 
