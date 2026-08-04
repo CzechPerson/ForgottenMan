@@ -1,23 +1,28 @@
 package com.forgottenman.network;
 
 import com.forgottenman.entity.ManEntity;
+import com.forgottenman.portal.WildPortals;
 import com.forgottenman.registry.ModAttachments;
 import com.forgottenman.registry.ModDimensions;
 import com.forgottenman.registry.ModItems;
 import com.forgottenman.registry.ModSounds;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 
+import java.util.List;
+
 public final class ModNetworking {
     public static void register() {
         PayloadTypeRegistry.playS2C().register(OpenManDialoguePayload.TYPE, OpenManDialoguePayload.STREAM_CODEC);
         PayloadTypeRegistry.playC2S().register(ManDialogueFinishedPayload.TYPE, ManDialogueFinishedPayload.STREAM_CODEC);
         PayloadTypeRegistry.playC2S().register(GiveEggPayload.TYPE, GiveEggPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(WildPortalsPayload.TYPE, WildPortalsPayload.STREAM_CODEC);
 
         // The client handler for OpenManDialoguePayload is registered from the client
         // entrypoint, keeping ClientDialogueHandler off the dedicated server's path
@@ -52,6 +57,20 @@ public final class ModNetworking {
                 man.startVanishing();
             }
         }
+    }
+
+    /** Pushes the armed doors of one dimension to everyone standing in it */
+    public static void syncWildPortals(ServerLevel level) {
+        List<BlockPos> positions = List.copyOf(WildPortals.armedIn(level.dimension()));
+        for (ServerPlayer player : level.players()) {
+            ServerPlayNetworking.send(player, new WildPortalsPayload(positions));
+        }
+    }
+
+    /** One player, for joins and dimension changes */
+    public static void syncWildPortals(ServerPlayer player) {
+        ServerPlayNetworking.send(player,
+                new WildPortalsPayload(List.copyOf(WildPortals.armedIn(player.level().dimension()))));
     }
 
     private ModNetworking() {

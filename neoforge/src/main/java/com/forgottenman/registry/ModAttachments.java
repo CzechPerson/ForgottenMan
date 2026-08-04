@@ -28,6 +28,16 @@ public final class ModAttachments {
                     .copyOnDeath()
                     .build());
 
+    /**
+     * Whether ENTRY_DOOR is a door of the world's own rather than a crafted one.
+     * Decides whether the door survives the trip back.
+     */
+    public static final Supplier<AttachmentType<Boolean>> ENTRY_WILD = ATTACHMENTS.register("entry_wild",
+            () -> AttachmentType.builder(() -> false)
+                    .serialize(com.mojang.serialization.Codec.BOOL)
+                    .copyOnDeath()
+                    .build());
+
     private ModAttachments() {
     }
 }

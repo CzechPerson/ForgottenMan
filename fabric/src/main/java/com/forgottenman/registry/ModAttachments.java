@@ -21,6 +21,14 @@ public final class ModAttachments {
             ForgottenMan.id("met_man"),
             builder -> builder.initializer(() -> false).persistent(Codec.BOOL).copyOnDeath());
 
+    /**
+     * Whether ENTRY_DOOR is a door of the world's own rather than a crafted one.
+     * Decides whether the door survives the trip back.
+     */
+    public static final AttachmentType<Boolean> ENTRY_WILD = AttachmentRegistry.create(
+            ForgottenMan.id("entry_wild"),
+            builder -> builder.initializer(() -> false).persistent(Codec.BOOL).copyOnDeath());
+
     public static void register() {
     }
 
@@ -31,6 +39,14 @@ public final class ModAttachments {
 
     public static void setMetMan(AttachmentTarget target, boolean met) {
         target.setAttached(MET_MAN, met);
+    }
+
+    public static boolean isEntryWild(AttachmentTarget target) {
+        return Boolean.TRUE.equals(target.getAttached(ENTRY_WILD));
+    }
+
+    public static void setEntryWild(AttachmentTarget target, boolean wild) {
+        target.setAttached(ENTRY_WILD, wild);
     }
 
     private ModAttachments() {

@@ -2,10 +2,12 @@ package com.forgottenman.network;
 
 import com.forgottenman.ForgottenMan;
 import com.forgottenman.entity.ManEntity;
+import com.forgottenman.portal.WildPortals;
 import com.forgottenman.registry.ModAttachments;
 import com.forgottenman.registry.ModDimensions;
 import com.forgottenman.registry.ModItems;
 import com.forgottenman.registry.ModSounds;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
@@ -13,8 +15,11 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+
+import java.util.List;
 
 @EventBusSubscriber(modid = ForgottenMan.MOD_ID)
 public final class ModNetworking {
@@ -35,6 +40,22 @@ public final class ModNetworking {
                         giveEgg(player);
                     }
                 });
+        registrar.playToClient(WildPortalsPayload.TYPE, WildPortalsPayload.STREAM_CODEC,
+                (payload, context) -> com.forgottenman.client.WildPortalState.set(payload.positions()));
+    }
+
+    /** Pushes the armed doors of one dimension to everyone standing in it */
+    public static void syncWildPortals(ServerLevel level) {
+        List<BlockPos> positions = List.copyOf(WildPortals.armedIn(level.dimension()));
+        for (ServerPlayer player : level.players()) {
+            PacketDistributor.sendToPlayer(player, new WildPortalsPayload(positions));
+        }
+    }
+
+    /** One player, for joins and dimension changes */
+    public static void syncWildPortals(ServerPlayer player) {
+        PacketDistributor.sendToPlayer(player,
+                new WildPortalsPayload(List.copyOf(WildPortals.armedIn(player.level().dimension()))));
     }
 
     // Hands over the egg after checking the claim is legit: in the room, man nearby, not met yet

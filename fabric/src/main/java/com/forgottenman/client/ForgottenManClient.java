@@ -6,6 +6,7 @@ import com.forgottenman.client.render.DoorPortalRenderer;
 import com.forgottenman.client.render.ManRenderer;
 import com.forgottenman.client.shader.ModShaders;
 import com.forgottenman.network.OpenManDialoguePayload;
+import com.forgottenman.network.WildPortalsPayload;
 import com.forgottenman.registry.ModBlocks;
 import com.forgottenman.registry.ModDimensions;
 import com.forgottenman.registry.ModEntities;
@@ -58,6 +59,8 @@ public class ForgottenManClient implements ClientModInitializer {
 
         ClientPlayNetworking.registerGlobalReceiver(OpenManDialoguePayload.TYPE,
                 (payload, context) -> context.client().execute(ClientDialogueHandler::openDialogue));
+        ClientPlayNetworking.registerGlobalReceiver(WildPortalsPayload.TYPE,
+                (payload, context) -> context.client().execute(() -> WildPortalState.set(payload.positions())));
 
         ModShaders.register();
         ScreenShake.register();

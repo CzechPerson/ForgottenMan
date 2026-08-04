@@ -26,6 +26,9 @@ public class ForgottenMan {
         ModParticles.PARTICLES.register(modEventBus);
         ModEntities.ENTITY_TYPES.register(modEventBus);
         ModSounds.SOUNDS.register(modEventBus);
+        // Per world: the wild portals it governs are a property of the save
+        modContainer.registerConfig(net.neoforged.fml.config.ModConfig.Type.SERVER,
+                com.forgottenman.config.ModConfig.SPEC);
     }
 
     public static ResourceLocation id(String path) {
