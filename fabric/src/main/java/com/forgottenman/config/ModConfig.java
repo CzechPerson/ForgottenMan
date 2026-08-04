@@ -3,6 +3,7 @@ package com.forgottenman.config;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
+import com.google.gson.annotations.SerializedName;
 import com.mojang.logging.LogUtils;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
@@ -22,10 +23,16 @@ public final class ModConfig {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    /** Mirrors the NeoForge config's wild_portals section */
+    /** Shaped like the NeoForge config so both loaders read the same keys */
     private static final class Values {
-        boolean wildPortalsEnabled = false;
-        double wildPortalChance = 0.01D;
+        @SerializedName("random_entrances")
+        RandomEntrances randomEntrances = new RandomEntrances();
+    }
+
+    /** Any door you open has a chance to contain a portal to the tree room */
+    private static final class RandomEntrances {
+        boolean enabled = false;
+        double chance = 0.01D;
     }
 
     private static Values values = new Values();
@@ -43,7 +50,11 @@ public final class ModConfig {
                 values = new Values();
             }
         }
-        values.wildPortalChance = Math.max(0.0D, Math.min(1.0D, values.wildPortalChance));
+        // A file missing the section entirely leaves the field null
+        if (values.randomEntrances == null) {
+            values.randomEntrances = new RandomEntrances();
+        }
+        values.randomEntrances.chance = Math.max(0.0D, Math.min(1.0D, values.randomEntrances.chance));
         save(path);
     }
 
@@ -58,14 +69,14 @@ public final class ModConfig {
         }
     }
 
-    /** Any door you open can become a way into the tree room */
-    public static boolean wildPortalsEnabled() {
-        return values.wildPortalsEnabled;
+    /** Any door you open has a chance to contain a portal to the tree room */
+    public static boolean randomEntrancesEnabled() {
+        return values.randomEntrances.enabled;
     }
 
     /** Chance each time a door is opened, 0.01 being 1% */
-    public static double wildPortalChance() {
-        return values.wildPortalChance;
+    public static double randomEntranceChance() {
+        return values.randomEntrances.chance;
     }
 
     private ModConfig() {

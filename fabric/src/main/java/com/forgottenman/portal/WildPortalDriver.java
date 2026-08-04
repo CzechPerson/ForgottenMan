@@ -39,7 +39,7 @@ public final class WildPortalDriver {
 
     public static void register() {
         UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
-            if (!level.isClientSide && ModConfig.wildPortalsEnabled()) {
+            if (!level.isClientSide && ModConfig.randomEntrancesEnabled()) {
                 noteDoorClick(level, hit.getBlockPos());
             }
             return InteractionResult.PASS;
@@ -91,10 +91,10 @@ public final class WildPortalDriver {
     private static void resolvePending(MinecraftServer server) {
         List<Pending> pending = List.copyOf(PENDING);
         PENDING.clear();
-        if (!ModConfig.wildPortalsEnabled()) {
+        if (!ModConfig.randomEntrancesEnabled()) {
             return;
         }
-        double chance = ModConfig.wildPortalChance();
+        double chance = ModConfig.randomEntranceChance();
         if (chance <= 0.0) {
             return;
         }

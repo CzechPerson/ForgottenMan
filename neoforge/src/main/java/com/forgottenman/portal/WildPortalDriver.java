@@ -41,7 +41,7 @@ public final class WildPortalDriver {
 
     @SubscribeEvent
     static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
-        if (event.getLevel().isClientSide || !ModConfig.wildPortalsEnabled()) {
+        if (event.getLevel().isClientSide || !ModConfig.randomEntrancesEnabled()) {
             return;
         }
         BlockPos pos = event.getPos();
@@ -81,10 +81,10 @@ public final class WildPortalDriver {
     private static void resolvePending(MinecraftServer server) {
         List<Pending> pending = List.copyOf(PENDING);
         PENDING.clear();
-        if (!ModConfig.wildPortalsEnabled()) {
+        if (!ModConfig.randomEntrancesEnabled()) {
             return;
         }
-        double chance = ModConfig.wildPortalChance();
+        double chance = ModConfig.randomEntranceChance();
         if (chance <= 0.0) {
             return;
         }
