@@ -18,6 +18,7 @@ public final class ModAttachments {
     private static final String ENTRY_DOOR = "entry_door";
     private static final String ENTRY_DIMENSION = "entry_door_dimension";
     private static final String MET_MAN = "met_man";
+    private static final String ENTRY_WILD = "entry_wild";
 
     /** Whether this player has talked to the man behind the tree */
     public static boolean hasMetMan(Player player) {
@@ -26,6 +27,18 @@ public final class ModAttachments {
 
     public static void setMetMan(Player player, boolean met) {
         data(player).putBoolean(MET_MAN, met);
+    }
+
+    /**
+     * Whether ENTRY_DOOR is a door of the world's own rather than a crafted one.
+     * Decides whether the door survives the trip back.
+     */
+    public static boolean isEntryWild(Player player) {
+        return data(player).getBoolean(ENTRY_WILD);
+    }
+
+    public static void setEntryWild(Player player, boolean wild) {
+        data(player).putBoolean(ENTRY_WILD, wild);
     }
 
     /** The door the player last entered the tree room through */
@@ -57,6 +70,7 @@ public final class ModAttachments {
         CompoundTag tag = data(player);
         tag.remove(ENTRY_DOOR);
         tag.remove(ENTRY_DIMENSION);
+        tag.remove(ENTRY_WILD);
     }
 
     // getCompound hands back a fresh tag when the key is missing, so the subtag has

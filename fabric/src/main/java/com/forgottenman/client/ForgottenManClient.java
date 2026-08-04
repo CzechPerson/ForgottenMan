@@ -58,6 +58,10 @@ public class ForgottenManClient implements ClientModInitializer {
 
         ClientPlayNetworking.registerGlobalReceiver(ModNetworking.OPEN_MAN_DIALOGUE,
                 (client, handler, buf, sender) -> client.execute(ClientDialogueHandler::openDialogue));
+        ClientPlayNetworking.registerGlobalReceiver(ModNetworking.WILD_PORTALS, (client, handler, buf, sender) -> {
+            var positions = ModNetworking.readPositions(buf);
+            client.execute(() -> WildPortalState.set(positions));
+        });
 
         ModShaders.register();
         ScreenShake.register();

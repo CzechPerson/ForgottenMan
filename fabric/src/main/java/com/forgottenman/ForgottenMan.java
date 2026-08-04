@@ -1,6 +1,8 @@
 package com.forgottenman;
 
+import com.forgottenman.config.ModConfig;
 import com.forgottenman.network.ModNetworking;
+import com.forgottenman.portal.WildPortalDriver;
 import com.forgottenman.registry.ModAttachments;
 import com.forgottenman.registry.ModBlockEntities;
 import com.forgottenman.registry.ModBlocks;
@@ -17,6 +19,7 @@ public class ForgottenMan implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        ModConfig.load();
         // Fabric registries are eager, so order matters: blocks before the items and
         // block entities that reference them
         ModBlocks.register();
@@ -29,6 +32,7 @@ public class ForgottenMan implements ModInitializer {
         ModCreativeTabs.register();
         ModNetworking.register();
         CommonEvents.register();
+        WildPortalDriver.register();
     }
 
     public static ResourceLocation id(String path) {

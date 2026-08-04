@@ -27,6 +27,7 @@ public final class ClientEvents {
     static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         RealityState.setMirrorLevel(0); // Fresh world, fresh reality
         DoorPortalRenderer.clear();
+        WildPortalState.clear();
         music = null;
     }
 

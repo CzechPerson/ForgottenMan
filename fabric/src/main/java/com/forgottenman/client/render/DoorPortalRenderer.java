@@ -1,6 +1,7 @@
 package com.forgottenman.client.render;
 
 import com.forgottenman.block.MysteriousDoorBlockEntity;
+import com.forgottenman.client.WildPortalState;
 import com.forgottenman.client.shader.ModShaders;
 import com.forgottenman.registry.ModDimensions;
 import com.forgottenman.room.RoomLayout;
@@ -23,6 +24,7 @@ import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.inventory.InventoryMenu;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoorHingeSide;
@@ -63,8 +65,13 @@ public final class DoorPortalRenderer {
     private static final Set<MysteriousDoorBlockEntity> DOORS = ConcurrentHashMap.newKeySet();
 
     // A single door or both halves of an open double door
-    private record Doorway(Vec3 anchor, Direction facing, List<MysteriousDoorBlockEntity> doors) {
+    private record Doorway(Vec3 anchor, Direction facing, List<BlockPos> doors) {
     }
+
+    // When each doorway was last seen open, so a closing door can linger. Crafted
+    // doors used to carry this themselves; wild ones have no block entity to put
+    // it on, so both kinds share this instead.
+    private static final Map<BlockPos, Long> LAST_OPEN = new HashMap<>();
 
     public static void track(MysteriousDoorBlockEntity door) {
         DOORS.add(door);
@@ -76,12 +83,13 @@ public final class DoorPortalRenderer {
 
     public static void clear() {
         DOORS.clear();
+        LAST_OPEN.clear();
     }
 
     /** Called by LevelRendererMixin, at the same point NeoForge fires AFTER_BLOCK_ENTITIES */
     public static void renderPortalStage(float partialTick, Camera camera, Frustum frustum,
                                          Matrix4f modelViewMatrix, Matrix4f projectionMatrix) {
-        if (DOORS.isEmpty()) {
+        if ((DOORS.isEmpty() && WildPortalState.armed().isEmpty())) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
@@ -92,76 +100,89 @@ public final class DoorPortalRenderer {
         Vec3 cam = camera.getPosition();
         boolean inTreeRoom = mc.level.dimension() == ModDimensions.TREE_ROOM;
 
-        List<MysteriousDoorBlockEntity> visible = new ArrayList<>();
+        List<BlockPos> visible = new ArrayList<>();
+        Set<BlockPos> seen = new HashSet<>();
         for (MysteriousDoorBlockEntity door : DOORS) {
             if (door.isRemoved() || door.getLevel() != mc.level) {
                 DOORS.remove(door);
                 continue;
             }
-            BlockState state = door.getBlockState();
-            if (!(state.getBlock() instanceof DoorBlock)
-                    || state.getValue(DoorBlock.HALF) != DoubleBlockHalf.LOWER) {
-                continue;
-            }
-            BlockPos pos = door.getBlockPos();
-            if (cam.distanceToSqr(pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5) > MAX_DISTANCE_SQ) {
-                continue;
-            }
-            if (state.getValue(DoorBlock.OPEN)) {
-                door.setLastOpenTime(gameTime);
-            } else if (door.getLastOpenTime() < 0
-                    || gameTime - door.getLastOpenTime() + partialTick >= CLOSE_LINGER) {
-                continue;
-            }
-            visible.add(door);
+            considerDoor(mc.level, door.getBlockPos(), cam, gameTime, partialTick, seen, visible);
+        }
+        for (BlockPos pos : WildPortalState.armed()) {
+            considerDoor(mc.level, pos, cam, gameTime, partialTick, seen, visible);
         }
         if (visible.isEmpty()) {
             return;
         }
 
         if (inTreeRoom) {
-            drawStatic(visible, cam, modelViewMatrix);
+            drawStatic(mc.level, visible, cam, modelViewMatrix);
             return;
         }
-        renderPortals(groupIntoDoorways(visible), frustum, modelViewMatrix, projectionMatrix, cam);
+        renderPortals(groupIntoDoorways(mc.level, visible), frustum, modelViewMatrix, projectionMatrix, cam);
+    }
+
+    // One doorway, crafted or wild: still a lower half, still in range, still open
+    // or recently so
+    private static void considerDoor(Level level, BlockPos pos, Vec3 cam, long gameTime,
+                                     float partialTick, Set<BlockPos> seen, List<BlockPos> out) {
+        if (!seen.add(pos)) {
+            return; // a crafted door the server also listed as wild
+        }
+        BlockState state = level.getBlockState(pos);
+        if (!(state.getBlock() instanceof DoorBlock)
+                || state.getValue(DoorBlock.HALF) != DoubleBlockHalf.LOWER) {
+            LAST_OPEN.remove(pos);
+            return;
+        }
+        if (cam.distanceToSqr(pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5) > MAX_DISTANCE_SQ) {
+            return;
+        }
+        if (state.getValue(DoorBlock.OPEN)) {
+            LAST_OPEN.put(pos.immutable(), gameTime);
+        } else {
+            Long last = LAST_OPEN.get(pos);
+            if (last == null || gameTime - last + partialTick >= CLOSE_LINGER) {
+                LAST_OPEN.remove(pos);
+                return;
+            }
+        }
+        out.add(pos.immutable());
     }
 
     // Merge open double doors into one doorway
-    private static List<Doorway> groupIntoDoorways(List<MysteriousDoorBlockEntity> doors) {
-        Map<BlockPos, MysteriousDoorBlockEntity> byPos = new HashMap<>();
-        for (MysteriousDoorBlockEntity door : doors) {
-            byPos.put(door.getBlockPos(), door);
-        }
+    private static List<Doorway> groupIntoDoorways(Level level, List<BlockPos> doors) {
+        Set<BlockPos> present = new HashSet<>(doors);
         List<Doorway> doorways = new ArrayList<>();
         Set<BlockPos> consumed = new HashSet<>();
-        for (MysteriousDoorBlockEntity door : doors) {
-            BlockPos pos = door.getBlockPos();
+        for (BlockPos pos : doors) {
             if (consumed.contains(pos)) {
                 continue;
             }
             consumed.add(pos);
-            BlockState state = door.getBlockState();
+            BlockState state = level.getBlockState(pos);
             Direction facing = state.getValue(DoorBlock.FACING);
             if (state.getValue(DoorBlock.OPEN)) {
                 DoorHingeSide hinge = state.getValue(DoorBlock.HINGE);
                 BlockPos partnerPos = pos.relative(hinge == DoorHingeSide.LEFT
                         ? facing.getClockWise() : facing.getCounterClockWise());
-                MysteriousDoorBlockEntity partner = byPos.get(partnerPos);
-                if (partner != null && !consumed.contains(partnerPos)) {
-                    BlockState ps = partner.getBlockState();
-                    if (ps.getValue(DoorBlock.FACING) == facing
+                if (present.contains(partnerPos) && !consumed.contains(partnerPos)) {
+                    BlockState ps = level.getBlockState(partnerPos);
+                    if (ps.getBlock() instanceof DoorBlock
+                            && ps.getValue(DoorBlock.FACING) == facing
                             && ps.getValue(DoorBlock.HINGE) != hinge
                             && ps.getValue(DoorBlock.OPEN)) {
                         consumed.add(partnerPos);
                         Vec3 seam = new Vec3((pos.getX() + partnerPos.getX()) / 2.0 + 0.5, pos.getY(),
                                 (pos.getZ() + partnerPos.getZ()) / 2.0 + 0.5);
-                        doorways.add(new Doorway(seam, facing, List.of(door, partner)));
+                        doorways.add(new Doorway(seam, facing, List.of(pos, partnerPos)));
                         continue;
                     }
                 }
             }
             doorways.add(new Doorway(new Vec3(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5),
-                    facing, List.of(door)));
+                    facing, List.of(pos)));
         }
         return doorways;
     }
@@ -220,7 +241,7 @@ public final class DoorPortalRenderer {
             GlStateManager._stencilOp(GL11.GL_KEEP, GL11.GL_KEEP, GL11.GL_REPLACE);
             RenderSystem.colorMask(false, false, false, false);
             RenderSystem.depthMask(false);
-            drawDoorwayQuads(doorway, cam);
+            drawDoorwayQuads(mc.level, doorway, cam);
 
             // Pass 2: black backdrop inside the mask, depth pushed to the far plane
             GlStateManager._stencilFunc(GL11.GL_EQUAL, ref, 0xFF);
@@ -231,7 +252,7 @@ public final class DoorPortalRenderer {
             RenderSystem.depthFunc(GL11.GL_ALWAYS);
             GL11.glDepthRange(1.0, 1.0);
             RenderSystem.setShaderColor(0.0F, 0.0F, 0.0F, 1.0F);
-            drawDoorwayQuads(doorway, cam);
+            drawDoorwayQuads(mc.level, doorway, cam);
             RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             GL11.glDepthRange(0.0, 1.0);
             RenderSystem.depthFunc(GL11.GL_LEQUAL);
@@ -264,8 +285,8 @@ public final class DoorPortalRenderer {
                 RenderSystem.defaultBlendFunc();
                 RenderSystem.depthMask(false);
                 BufferBuilder builder = beginQuads();
-                for (MysteriousDoorBlockEntity door : doorway.doors()) {
-                    addQuad(builder, door, cam);
+                for (BlockPos door : doorway.doors()) {
+                    addQuad(builder, mc.level, door, cam);
                 }
                 BufferBuilder.RenderedBuffer quadMesh = builder.endOrDiscardIfEmpty();
                 if (quadMesh != null) {
@@ -281,7 +302,7 @@ public final class DoorPortalRenderer {
             RenderSystem.disableCull();
             RenderSystem.colorMask(false, false, false, false);
             RenderSystem.depthMask(true);
-            drawDoorwayQuads(doorway, cam);
+            drawDoorwayQuads(mc.level, doorway, cam);
             RenderSystem.colorMask(true, true, true, true);
         }
         popCameraModelView();
@@ -292,8 +313,7 @@ public final class DoorPortalRenderer {
 
     private static AABB doorwayBounds(Doorway doorway) {
         AABB box = null;
-        for (MysteriousDoorBlockEntity door : doorway.doors()) {
-            BlockPos p = door.getBlockPos();
+        for (BlockPos p : doorway.doors()) {
             AABB b = new AABB(p.getX(), p.getY(), p.getZ(), p.getX() + 1.0, p.getY() + 2.0, p.getZ() + 1.0);
             box = box == null ? b : box.minmax(b);
         }
@@ -301,10 +321,10 @@ public final class DoorPortalRenderer {
     }
 
     // Doorway quads in the closed-panel plane
-    private static void drawDoorwayQuads(Doorway doorway, Vec3 cam) {
+    private static void drawDoorwayQuads(Level level, Doorway doorway, Vec3 cam) {
         BufferBuilder builder = beginQuads();
-        for (MysteriousDoorBlockEntity door : doorway.doors()) {
-            addQuad(builder, door, cam);
+        for (BlockPos door : doorway.doors()) {
+            addQuad(builder, level, door, cam);
         }
         BufferBuilder.RenderedBuffer mesh = builder.endOrDiscardIfEmpty();
         if (mesh != null) {
@@ -314,23 +334,22 @@ public final class DoorPortalRenderer {
     }
 
     // Static for tree room doors, there's no destination mesh to show
-    private static void drawStatic(List<MysteriousDoorBlockEntity> doors, Vec3 cam, Matrix4f cameraMatrix) {
+    private static void drawStatic(Level level, List<BlockPos> doors, Vec3 cam, Matrix4f cameraMatrix) {
         pushCameraModelView(cameraMatrix);
         BufferBuilder builder = beginQuads();
-        for (MysteriousDoorBlockEntity door : doors) {
-            addQuad(builder, door, cam);
+        for (BlockPos door : doors) {
+            addQuad(builder, level, door, cam);
         }
         ModRenderTypes.PORTAL_STATIC.end(builder, VertexSorting.DISTANCE_TO_ORIGIN);
         popCameraModelView();
     }
 
-    private static void addQuad(BufferBuilder builder, MysteriousDoorBlockEntity door, Vec3 cam) {
-        BlockPos pos = door.getBlockPos();
+    private static void addQuad(BufferBuilder builder, Level level, BlockPos pos, Vec3 cam) {
         // Camera-relative; the model-view at this stage already has the camera rotation
         float x = (float) (pos.getX() - cam.x);
         float y = (float) (pos.getY() - cam.y);
         float z = (float) (pos.getZ() - cam.z);
-        Direction facing = door.getBlockState().getValue(DoorBlock.FACING);
+        Direction facing = level.getBlockState(pos).getValue(DoorBlock.FACING);
         switch (facing) {
             case NORTH -> quadZ(builder, x, y, z + PLANE_FAR);
             case SOUTH -> quadZ(builder, x, y, z + PLANE_NEAR);

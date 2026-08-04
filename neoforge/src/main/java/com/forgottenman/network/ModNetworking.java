@@ -2,10 +2,12 @@ package com.forgottenman.network;
 
 import com.forgottenman.ForgottenMan;
 import com.forgottenman.entity.ManEntity;
+import com.forgottenman.portal.WildPortals;
 import com.forgottenman.registry.ModAttachments;
 import com.forgottenman.registry.ModDimensions;
 import com.forgottenman.registry.ModItems;
 import com.forgottenman.registry.ModSounds;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
@@ -15,6 +17,8 @@ import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
+
+import java.util.List;
 
 /**
  * 1.20.1 predates CustomPacketPayload, so the three signals travel on one
@@ -69,7 +73,7 @@ public final class ModNetworking {
                 })
                 .add();
 
-        CHANNEL.messageBuilder(GiveEgg.class, id, NetworkDirection.PLAY_TO_SERVER)
+        CHANNEL.messageBuilder(GiveEgg.class, id++, NetworkDirection.PLAY_TO_SERVER)
                 .encoder((message, buffer) -> { })
                 .decoder(buffer -> GiveEgg.INSTANCE)
                 .consumerMainThread((message, context) -> {
@@ -80,6 +84,29 @@ public final class ModNetworking {
                     context.get().setPacketHandled(true);
                 })
                 .add();
+
+        CHANNEL.messageBuilder(WildPortalsPayload.class, id, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(WildPortalsPayload::encode)
+                .decoder(WildPortalsPayload::decode)
+                .consumerMainThread((message, context) -> {
+                    com.forgottenman.client.WildPortalState.set(message.positions());
+                    context.get().setPacketHandled(true);
+                })
+                .add();
+    }
+
+    /** Pushes the armed doors of one dimension to everyone standing in it */
+    public static void syncWildPortals(ServerLevel level) {
+        List<BlockPos> positions = List.copyOf(WildPortals.armedIn(level.dimension()));
+        for (ServerPlayer player : level.players()) {
+            CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new WildPortalsPayload(positions));
+        }
+    }
+
+    /** One player, for joins and dimension changes */
+    public static void syncWildPortals(ServerPlayer player) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
+                new WildPortalsPayload(List.copyOf(WildPortals.armedIn(player.level().dimension()))));
     }
 
     public static void sendOpenDialogue(ServerPlayer player) {

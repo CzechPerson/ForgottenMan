@@ -11,6 +11,8 @@ import com.forgottenman.registry.ModSounds;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
 @Mod(ForgottenMan.MOD_ID)
@@ -28,6 +30,9 @@ public class ForgottenMan {
         ModSounds.SOUNDS.register(modEventBus);
         // Player data rides in the persistent NBT tag, so there is nothing to register
         ModNetworking.register();
+        // Per world: the wild portals it governs are a property of the save
+        ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER,
+                com.forgottenman.config.ModConfig.SPEC);
     }
 
     public static ResourceLocation id(String path) {
