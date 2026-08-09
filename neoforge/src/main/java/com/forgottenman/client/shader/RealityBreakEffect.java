@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.PostChain;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
@@ -26,7 +27,8 @@ public final class RealityBreakEffect {
     private static int lastWidth = -1;
     private static int lastHeight = -1;
 
-    @SubscribeEvent
+    // AFTER_LEVEL draw order is otherwise undefined: and the post chain last, over everything
+    @SubscribeEvent(priority = EventPriority.LOWEST)
     static void onRenderLevelStage(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_LEVEL) {
             return;
@@ -36,6 +38,8 @@ public final class RealityBreakEffect {
                 || RealityState.getMirrorLevel() < 2) {
             return; // The dizziness sets in once the copies recede to infinity
         }
+        // Runs under a pack too: by AFTER_LEVEL the pack has composited into the main
+        // render target, which is exactly what the chain reads and writes.
         if (chain == null && !load(mc)) {
             return;
         }

@@ -29,6 +29,9 @@ public class ForgottenMan {
         // Per world: the wild portals it governs are a property of the save
         modContainer.registerConfig(net.neoforged.fml.config.ModConfig.Type.SERVER,
                 com.forgottenman.config.ModConfig.SPEC);
+        // Client specs are skipped on a dedicated server, so this is safe unconditionally
+        modContainer.registerConfig(net.neoforged.fml.config.ModConfig.Type.CLIENT,
+                com.forgottenman.config.ClientConfig.SPEC);
     }
 
     public static ResourceLocation id(String path) {
