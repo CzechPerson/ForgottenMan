@@ -4,10 +4,15 @@ import com.forgottenman.client.shader.ModShaders;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 
-public final class ModRenderTypes {
+/**
+ * Extends RenderType purely to reach its protected state shards; never instantiated.
+ * The 1.20.1 branch already does this for NO_CULL.
+ */
+public final class ModRenderTypes extends RenderType {
     /** The man: procedural quad, opaque with shader-side discard so depth testing hides him behind the trunk */
     public static final RenderType CENSOR = RenderType.create(
             "forgottenman_censor",
@@ -43,6 +48,66 @@ public final class ModRenderTypes {
                     .setCullState(RenderStateShard.NO_CULL)
                     .createCompositeState(false));
 
-    private ModRenderTypes() {
+    // Used only when the framebuffer genuinely has no stencil (Fabulous layer targets and
+    // the like). Vanilla POSITION_COLOR, coloured per cell on the CPU by
+    // CompatPortalRenderer. Under a shaderpack the real portal runs instead, past the
+    // pack's composite, with the mod's own shaders.
+
+    /** Portal aperture. Depth-writing, so it is also the backdrop and the seal. */
+    public static final RenderType PORTAL_SURFACE_COMPAT = RenderType.create(
+            "forgottenman_portal_surface_compat",
+            DefaultVertexFormat.POSITION_COLOR,
+            VertexFormat.Mode.QUADS,
+            2048,
+            false,
+            false,
+            RenderType.CompositeState.builder()
+                    .setShaderState(new RenderStateShard.ShaderStateShard(GameRenderer::getPositionColorShader))
+                    .setCullState(RenderStateShard.NO_CULL)
+                    .createCompositeState(false));
+
+    /** Scanline shimmer over the aperture. No depth write. */
+    public static final RenderType PORTAL_SHIMMER_COMPAT = RenderType.create(
+            "forgottenman_portal_shimmer_compat",
+            DefaultVertexFormat.POSITION_COLOR,
+            VertexFormat.Mode.QUADS,
+            1024,
+            false,
+            true,
+            RenderType.CompositeState.builder()
+                    .setShaderState(new RenderStateShard.ShaderStateShard(GameRenderer::getPositionColorShader))
+                    .setCullState(RenderStateShard.NO_CULL)
+                    .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
+                    .setWriteMaskState(RenderStateShard.COLOR_WRITE)
+                    .createCompositeState(false));
+
+    /**
+     * Falling leaves, drawn past a shaderpack's composite so they glow.
+     *
+     * Unlit by construction: POSITION_TEX_COLOR samples the particle atlas and writes it
+     * straight out, with no lightmap and no gbuffer for a pack to relight from. That is
+     * real emission rather than a faked light value, and it needs nothing switched on in
+     * the pack -- LabPBR specular maps are ignored entirely by integrated-PBR modes.
+     */
+    public static final RenderType LEAF_GLOW = RenderType.create(
+            "forgottenman_leaf_glow",
+            DefaultVertexFormat.POSITION_TEX_COLOR,
+            VertexFormat.Mode.QUADS,
+            2048,
+            false,
+            true,
+            RenderType.CompositeState.builder()
+                    .setShaderState(new RenderStateShard.ShaderStateShard(GameRenderer::getPositionTexColorShader))
+                    .setTextureState(new RenderStateShard.TextureStateShard(
+                            net.minecraft.client.renderer.texture.TextureAtlas.LOCATION_PARTICLES, false, false))
+                    .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
+                    .setCullState(RenderStateShard.NO_CULL)
+                    .setWriteMaskState(RenderStateShard.COLOR_WRITE)
+                    .createCompositeState(false));
+
+    private ModRenderTypes(String name, com.mojang.blaze3d.vertex.VertexFormat format,
+                           VertexFormat.Mode mode, int bufferSize, boolean affectsCrumbling,
+                           boolean sortOnUpload, Runnable setup, Runnable clear) {
+        super(name, format, mode, bufferSize, affectsCrumbling, sortOnUpload, setup, clear);
     }
 }

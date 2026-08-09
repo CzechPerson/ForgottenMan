@@ -54,8 +54,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class DoorPortalRenderer {
     // Mid-plane offsets of the 3/16-thick closed door panel
-    private static final float PLANE_NEAR = 1.5F / 16.0F;
-    private static final float PLANE_FAR = 14.5F / 16.0F;
+    static final float PLANE_NEAR = 1.5F / 16.0F;
+    static final float PLANE_FAR = 14.5F / 16.0F;
     private static final double MAX_DISTANCE_SQ = 64.0 * 64.0;
     private static final boolean FWA_LOADED = FabricLoader.getInstance().isModLoaded("fwa");
     private static final float CLOSE_LINGER = FWA_LOADED ? 8.0F : 2.0F;
@@ -65,7 +65,7 @@ public final class DoorPortalRenderer {
     private static final Set<MysteriousDoorBlockEntity> DOORS = ConcurrentHashMap.newKeySet();
 
     // A single door or both halves of an open double door
-    private record Doorway(Vec3 anchor, Direction facing, List<BlockPos> doors) {
+    record Doorway(Vec3 anchor, Direction facing, List<BlockPos> doors) {
     }
 
     // When each doorway was last seen open, so a closing door can linger. Crafted

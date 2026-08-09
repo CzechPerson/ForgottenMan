@@ -20,8 +20,8 @@ import org.joml.Matrix4f;
  */
 public class ManRenderer extends EntityRenderer<ManEntity> {
     private static final ResourceLocation TEXTURE = ForgottenMan.id("textures/block/void_bark.png");
-    private static final float HALF_WIDTH = 0.65F;
-    private static final float HEIGHT = 2.3F;
+    static final float HALF_WIDTH = 0.65F;
+    static final float HEIGHT = 2.3F;
     // Read by the CENSOR render type's setup shard at flush time
     public static float vanishProgress;
 
