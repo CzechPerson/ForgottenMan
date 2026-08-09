@@ -43,6 +43,17 @@ dependencies {
     modCompileOnly "dev.emi:emi-fabric:1.1.24+1.20.1:api"
 }
 
+loom {
+    runs {
+        client {
+            // Loom upgrades the dev runtime's LWJGL past the 3.3.1 that 1.20.1 ships,
+            // and Sodium refuses to start on the mismatch (its issue gh-2561 guard).
+            // Dev-only escape hatch; production launchers pair the versions correctly.
+            vmArg '-Dsodium.checks.issue2561=false'
+        }
+    }
+}
+
 processResources {
     inputs.property 'version', project.version
     inputs.property 'minecraft_version', minecraft_version
