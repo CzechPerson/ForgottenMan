@@ -1,6 +1,7 @@
 package com.forgottenman.client.render;
 
 import com.forgottenman.ForgottenMan;
+import com.forgottenman.compat.ShaderCompat;
 import com.forgottenman.entity.ManEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -43,11 +44,21 @@ public class ManRenderer extends EntityRenderer<ManEntity> {
         poseStack.mulPose(Axis.YP.rotation(yaw));
 
         Matrix4f pose = poseStack.last().pose();
-        VertexConsumer consumer = bufferSource.getBuffer(ModRenderTypes.CENSOR);
-        consumer.addVertex(pose, -HALF_WIDTH, 0.0F, 0.0F).setUv(0.0F, 1.0F);
-        consumer.addVertex(pose, HALF_WIDTH, 0.0F, 0.0F).setUv(1.0F, 1.0F);
-        consumer.addVertex(pose, HALF_WIDTH, HEIGHT, 0.0F).setUv(1.0F, 0.0F);
-        consumer.addVertex(pose, -HALF_WIDTH, HEIGHT, 0.0F).setUv(0.0F, 0.0F);
+        if (ShaderCompat.useVanillaShaders()) {
+            // A pack owns the gbuffer stage and would drop the censor program. LateManRenderer
+            // redraws him at the tail of renderLevel, past the pack's composite, where our own
+            // shader lands on the final image unchanged.
+            poseStack.popPose();
+            super.render(entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
+            return;
+        }
+        {
+            VertexConsumer consumer = bufferSource.getBuffer(ModRenderTypes.CENSOR);
+            consumer.addVertex(pose, -HALF_WIDTH, 0.0F, 0.0F).setUv(0.0F, 1.0F);
+            consumer.addVertex(pose, HALF_WIDTH, 0.0F, 0.0F).setUv(1.0F, 1.0F);
+            consumer.addVertex(pose, HALF_WIDTH, HEIGHT, 0.0F).setUv(1.0F, 0.0F);
+            consumer.addVertex(pose, -HALF_WIDTH, HEIGHT, 0.0F).setUv(0.0F, 0.0F);
+        }
         poseStack.popPose();
 
         super.render(entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);

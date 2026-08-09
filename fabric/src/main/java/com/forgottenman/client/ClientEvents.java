@@ -2,12 +2,11 @@ package com.forgottenman.client;
 
 import com.forgottenman.client.render.DoorPortalRenderer;
 import com.forgottenman.client.render.StencilTarget;
-import com.forgottenman.client.shader.RealityBreakEffect;
+import com.forgottenman.compat.ShaderCompat;
 import com.forgottenman.network.RealityState;
 import com.forgottenman.registry.ModDimensions;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
 
 public final class ClientEvents {
@@ -23,16 +22,17 @@ public final class ClientEvents {
             RealityState.setMirrorLevel(0); // Fresh world, fresh reality
             DoorPortalRenderer.clear();
             WildPortalState.clear();
+            ShaderCompat.invalidate();
             music = null;
         });
 
-        // The mirror copies and the door portals hook LevelRenderer directly (see
-        // LevelRendererMixin) because Fabric has no post-sky or post-block-entity
-        // stage. Only the finishing post pass fits a stock Fabric stage.
-        WorldRenderEvents.LAST.register(context -> RealityBreakEffect.renderAfterLevel());
+        // Every render hook lives in LevelRendererMixin: Fabric has no post-sky or
+        // post-block-entity stage, and the late draws (LateRenderDispatcher) must run
+        // after Iris's RETURN injection, which no Fabric API event guarantees.
     }
 
     private static void onClientTick(Minecraft mc) {
+        ShaderCompat.tick();
         // Enabling stencil destroys and recreates the main framebuffer, so it has to
         // happen between frames. Client ticks run before bindWrite; doing it from the
         // portal renderer instead deleted the framebuffer mid-draw and broke every
@@ -40,6 +40,12 @@ public final class ClientEvents {
         if (!stencilReady) {
             stencilReady = true;
             ((StencilTarget) mc.getMainRenderTarget()).forgottenman$enableStencil();
+        }
+        // Keeps the verdict fresh and logs it when it flips, so a bug report says which
+        // path was running. Cached, so this is about one check a second. No GL here --
+        // the framebuffer probe only runs inside the render stage.
+        if (mc.level != null) {
+            ShaderCompat.effectsUseCompat();
         }
         boolean inRoom = mc.level != null && mc.level.dimension() == ModDimensions.TREE_ROOM;
         if (inRoom) {

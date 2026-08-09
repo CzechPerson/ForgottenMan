@@ -23,6 +23,10 @@ import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 public class ForgottenManClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        // Client settings stay out of ModConfig, which loads at common init and would
+        // run on a dedicated server
+        com.forgottenman.config.ClientConfig.load();
+
         // The door portal is not a BlockEntityRenderer (see DoorPortalRenderer),
         // Fancy World Animations cancels those at doors it animates
         EntityRendererRegistry.register(ModEntities.MAN.get(), ManRenderer::new);

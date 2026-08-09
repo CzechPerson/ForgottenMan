@@ -1,21 +1,36 @@
 package com.forgottenman.client.render;
 
 import com.forgottenman.client.shader.ModShaders;
+import com.forgottenman.compat.ShaderCompat;
 import com.forgottenman.network.RealityState;
 import com.forgottenman.registry.ModDimensions;
 import com.forgottenman.room.RoomLayout;
 import com.mojang.blaze3d.shaders.AbstractUniform;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.BufferUploader;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.MeshData;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexBuffer;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
+import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.culling.Frustum;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.inventory.InventoryMenu;
+import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fStack;
 import org.lwjgl.opengl.GL11;
 
 import java.util.ArrayList;
@@ -50,12 +65,43 @@ public final class InfiniteRoomRenderer {
     /** Called by LevelRendererMixin, immediately after the sky is drawn */
     public static void renderAfterSky(DeltaTracker deltaTracker, Camera camera, Frustum frustum,
                                       Matrix4f modelViewMatrix, Matrix4f projectionMatrix) {
+        // Under a pack the copies move past the composite, same as the portal and the
+        // man, so room_copy renders instead of being dropped. Depth still occludes them
+        // against the real room.
+        if (ShaderCompat.effectsUseCompat()) {
+            return;
+        }
+        render(deltaTracker, camera, frustum, modelViewMatrix, projectionMatrix, false);
+    }
+
+    /** Called by LateRenderDispatcher at the tail of renderLevel, only under a shaderpack */
+    public static void renderLate(DeltaTracker deltaTracker, Camera camera, Frustum frustum,
+                                  Matrix4f modelViewMatrix, Matrix4f projectionMatrix) {
+        if (!ShaderCompat.effectsUseCompat()) {
+            return;
+        }
+        render(deltaTracker, camera, frustum, modelViewMatrix, projectionMatrix, true);
+    }
+
+    private static void render(DeltaTracker deltaTracker, Camera camera, Frustum frustum,
+                               Matrix4f modelViewMatrix, Matrix4f projectionMatrix, boolean compat) {
+        if (ShaderCompat.isShadowPass()) {
+            return; // 80 room meshes have no business in a pack's shadow map
+        }
         Minecraft mc = Minecraft.getInstance();
         int mirrorLevel = RealityState.getMirrorLevel();
         if (mc.level == null || mc.level.dimension() != ModDimensions.TREE_ROOM) {
             ringProgress = 0.0F;
             hallProgress = 0.0F;
             return;
+        }
+        // Under a pack the island itself is redrawn here from the fullbright bake. Feeding
+        // the pack block light instead only ever yields a warm, directionally shaded island
+        // -- vanilla's flat neutral fullbright comes from forceBrightLightmap, which a pack
+        // never reads. Same mesh, same shader, drawn past the composite: identical to
+        // vanilla by construction.
+        if (compat) {
+            drawOriginRoom(modelViewMatrix, projectionMatrix, camera.getPosition());
         }
         // Copies glide out from the real room to their slots instead of popping in
         float dt = deltaTracker.getGameTimeDeltaTicks();
@@ -174,6 +220,96 @@ public final class InfiniteRoomRenderer {
 
         GL11.glCullFace(GL11.GL_BACK); // Vanilla never touches the cull face, put it back
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
+    // The real room, redrawn fullbright over whatever the pack shaded
+    private static void drawOriginRoom(Matrix4f modelViewMatrix, Matrix4f projectionMatrix, Vec3 cam) {
+        VertexBuffer mesh = RoomMesh.getAmbientOccluded();
+        ShaderInstance shader = ModShaders.getRoomCopyShader();
+        if (mesh == null || shader == null) {
+            return;
+        }
+        RenderSystem.setShaderTexture(0, InventoryMenu.BLOCK_ATLAS);
+        RenderSystem.enableCull();
+        RenderSystem.enableDepthTest();
+        RenderSystem.depthFunc(GL11.GL_LEQUAL);
+        RenderSystem.depthMask(true);
+        // Same geometry the chunk renderer already drew, so nudge it towards the camera or
+        // the two z-fight into flicker. Safe for the portal because the dispatcher draws
+        // this before the doorway quad rather than over it.
+        GL11.glEnable(GL11.GL_POLYGON_OFFSET_FILL);
+        GL11.glPolygonOffset(-1.0F, -1.0F);
+        // The bake is fullbright, so it reads brighter than the chunk-rendered room even
+        // at the copies' 0.9. Pulled down until it sits where the no-shader island does.
+        RenderSystem.setShaderColor(0.62F, 0.62F, 0.62F, 1.0F);
+
+        shader.safeGetUniform("FadeStart").set(FADE_START);
+        shader.safeGetUniform("FadeEnd").set(FADE_END);
+        shader.safeGetUniform("FogTint").set(0.0F, 0.0F, 0.0F, 1.0F);
+        shader.safeGetUniform("Desync").set(0.0F);
+        shader.safeGetUniform("Distortion").set(0.0F); // the real room never wobbles
+
+        Matrix4f modelView = new Matrix4f(modelViewMatrix)
+                .translate((float) (RoomLayout.ORIGIN.getX() - cam.x),
+                        (float) (RoomLayout.ORIGIN.getY() - cam.y),
+                        (float) (RoomLayout.ORIGIN.getZ() - cam.z));
+        mesh.bind();
+        mesh.drawWithShader(modelView, new Matrix4f(projectionMatrix), shader);
+        VertexBuffer.unbind();
+
+        drawDoorsFullbright(modelViewMatrix, cam);
+
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        GL11.glPolygonOffset(0.0F, 0.0F);
+        GL11.glDisable(GL11.GL_POLYGON_OFFSET_FILL);
+    }
+
+    /**
+     * The doors, which RoomMesh leaves out because they animate and a static bake would
+     * freeze them shut. That makes them the only part of the island a pack still shades,
+     * and the room's void_light renders them warm and far brighter than the fullbright
+     * overdraw beside them. Tesselated per frame from the live blockstate instead.
+     */
+    private static void drawDoorsFullbright(Matrix4f modelViewMatrix, Vec3 cam) {
+        Minecraft mc = Minecraft.getInstance();
+        ShaderInstance shader = ModShaders.getRoomCopyShader();
+        if (mc.level == null || shader == null) {
+            return;
+        }
+        BlockRenderDispatcher dispatcher = mc.getBlockRenderer();
+        BufferBuilder builder = Tesselator.getInstance()
+                .begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
+        PoseStack pose = new PoseStack();
+        RandomSource random = RandomSource.create(42L);
+        boolean any = false;
+        for (BlockPos local : RoomLayout.blocks().keySet()) {
+            BlockPos world = RoomLayout.ORIGIN.offset(local);
+            BlockState live = mc.level.getBlockState(world);
+            if (!(live.getBlock() instanceof DoorBlock)) {
+                continue;
+            }
+            any = true;
+            pose.pushPose();
+            pose.translate(world.getX() - cam.x, world.getY() - cam.y, world.getZ() - cam.z);
+            // FakeRoomLevel for the fullbright/flat-shade treatment, the live state for the
+            // actual open or closed geometry
+            dispatcher.getModelRenderer().tesselateWithoutAO(FakeRoomLevel.INSTANCE,
+                    dispatcher.getBlockModel(live), live, world, pose, builder, false, random,
+                    live.getSeed(world), OverlayTexture.NO_OVERLAY);
+            pose.popPose();
+        }
+        MeshData mesh = builder.build();
+        if (!any || mesh == null) {
+            return;
+        }
+        Matrix4fStack stack = RenderSystem.getModelViewStack();
+        stack.pushMatrix();
+        stack.mul(modelViewMatrix);
+        RenderSystem.applyModelViewMatrix();
+        RenderSystem.setShader(ModShaders::getRoomCopyShader);
+        BufferUploader.drawWithShader(mesh);
+        stack.popMatrix();
+        RenderSystem.applyModelViewMatrix();
     }
 
     private static float ringProgress;

@@ -3,6 +3,7 @@ package com.forgottenman.client.render;
 import com.forgottenman.block.MysteriousDoorBlockEntity;
 import com.forgottenman.client.WildPortalState;
 import com.forgottenman.client.shader.ModShaders;
+import com.forgottenman.compat.ShaderCompat;
 import com.forgottenman.registry.ModDimensions;
 import com.forgottenman.room.RoomLayout;
 import com.mojang.blaze3d.platform.GlStateManager;
@@ -32,6 +33,7 @@ import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fStack;
 import org.lwjgl.opengl.GL11;
 
 import java.util.ArrayList;
@@ -89,6 +91,31 @@ public final class DoorPortalRenderer {
     /** Called by LevelRendererMixin, at the same point NeoForge fires AFTER_BLOCK_ENTITIES */
     public static void renderPortalStage(DeltaTracker deltaTracker, Camera camera, Frustum frustum,
                                          Matrix4f modelViewMatrix, Matrix4f projectionMatrix) {
+        // Under a shaderpack the whole portal moves to the tail of renderLevel, past the
+        // pack's composite. Drawn in the gbuffer stage instead, the pack drops our core
+        // shaders and composites its own sky and clouds straight over the doorway. After
+        // the composite our shaders land on the final image untouched and nothing
+        // overwrites them, so the portal looks exactly as it does without a pack.
+        if (ShaderCompat.useVanillaShaders()) {
+            return;
+        }
+        renderStage(deltaTracker, camera, frustum, modelViewMatrix, projectionMatrix, false);
+    }
+
+    /** Called by LateRenderDispatcher at the tail of renderLevel, only under a shaderpack */
+    public static void renderLate(DeltaTracker deltaTracker, Camera camera, Frustum frustum,
+                                  Matrix4f modelViewMatrix, Matrix4f projectionMatrix) {
+        if (!ShaderCompat.useVanillaShaders()) {
+            return;
+        }
+        renderStage(deltaTracker, camera, frustum, modelViewMatrix, projectionMatrix, true);
+    }
+
+    private static void renderStage(DeltaTracker deltaTracker, Camera camera, Frustum frustum,
+                                    Matrix4f modelViewMatrix, Matrix4f projectionMatrix, boolean late) {
+        // Cheap and cached, but it has to happen inside the render stage to see the
+        // framebuffer another mod may have bound
+        ShaderCompat.stencilAvailable();
         if ((DOORS.isEmpty() && WildPortalState.armed().isEmpty())) {
             return;
         }
@@ -118,10 +145,10 @@ public final class DoorPortalRenderer {
         }
 
         if (inTreeRoom) {
-            drawStatic(mc.level, visible, cam);
+            withCameraModelView(late, modelViewMatrix, () -> drawStatic(mc.level, visible, cam));
             return;
         }
-        renderPortals(groupIntoDoorways(mc.level, visible), frustum, modelViewMatrix, projectionMatrix, cam);
+        renderPortals(groupIntoDoorways(mc.level, visible), frustum, modelViewMatrix, projectionMatrix, cam, late);
     }
 
     // One doorway, crafted or wild: still a lower half, still in range, still open
@@ -189,8 +216,17 @@ public final class DoorPortalRenderer {
     }
 
     private static void renderPortals(List<Doorway> doorways, Frustum frustum,
-                                      Matrix4f modelViewMatrix, Matrix4f projectionMatrix, Vec3 cam) {
+                                      Matrix4f modelViewMatrix, Matrix4f projectionMatrix, Vec3 cam, boolean late) {
         Minecraft mc = Minecraft.getInstance();
+        // A pack re-renders the world into its shadow map; portals have no business there
+        if (ShaderCompat.isShadowPass()) {
+            return;
+        }
+        if (ShaderCompat.portalUsesCompat()) {
+            withCameraModelView(late, modelViewMatrix,
+                    () -> CompatPortalRenderer.render(mc.level, doorways, cam, mc.level.getGameTime()));
+            return;
+        }
         VertexBuffer mesh = RoomMesh.get();
         ShaderInstance roomShader = ModShaders.getRoomCopyShader();
         if (mesh == null || roomShader == null) {
@@ -200,6 +236,14 @@ public final class DoorPortalRenderer {
             return; // ClientEvents turns it on between frames; never enable it mid-draw
         }
         Matrix4f proj = new Matrix4f(projectionMatrix);
+        // At the tail of renderLevel RenderSystem's model-view is no longer the camera,
+        // so the camera-relative quads would be drawn in screen space without this
+        if (late) {
+            Matrix4fStack stack = RenderSystem.getModelViewStack();
+            stack.pushMatrix();
+            stack.mul(modelViewMatrix);
+            RenderSystem.applyModelViewMatrix();
+        }
 
         // Same mesh and uniforms for every doorway, set up once per frame
         RenderSystem.setShaderTexture(0, InventoryMenu.BLOCK_ATLAS);
@@ -308,6 +352,25 @@ public final class DoorPortalRenderer {
         GL11.glDisable(GL11.GL_STENCIL_TEST);
         GlStateManager._stencilMask(0xFF);
         RenderSystem.enableCull(); // Vanilla default
+        if (late) {
+            RenderSystem.getModelViewStack().popMatrix();
+            RenderSystem.applyModelViewMatrix();
+        }
+    }
+
+    /** Runs a draw with the camera matrix applied, needed once past the gbuffer stage. */
+    private static void withCameraModelView(boolean late, Matrix4f modelViewMatrix, Runnable draw) {
+        if (!late) {
+            draw.run();
+            return;
+        }
+        Matrix4fStack stack = RenderSystem.getModelViewStack();
+        stack.pushMatrix();
+        stack.mul(modelViewMatrix);
+        RenderSystem.applyModelViewMatrix();
+        draw.run();
+        stack.popMatrix();
+        RenderSystem.applyModelViewMatrix();
     }
 
     private static AABB doorwayBounds(Doorway doorway) {
