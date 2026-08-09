@@ -216,7 +216,10 @@ public final class DoorPortalRenderer {
             return;
         }
         if (ShaderCompat.portalUsesCompat()) {
-            CompatPortalRenderer.render(mc.level, doorways, cam, mc.level.getGameTime());
+            // The aperture draws through RenderType, which reads RenderSystem's
+            // model-view -- at AFTER_LEVEL that is no longer the camera matrix
+            withCameraModelView(late, event,
+                    () -> CompatPortalRenderer.render(mc.level, doorways, cam, mc.level.getGameTime()));
             return;
         }
         VertexBuffer mesh = RoomMesh.get();
