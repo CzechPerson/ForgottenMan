@@ -61,7 +61,8 @@ public final class LateManRenderer {
         // camera-relative coords but drawn in screen space.
         PoseStack modelView = RenderSystem.getModelViewStack();
         modelView.pushPose();
-        modelView.mulPoseMatrix(event.getPoseStack().last().pose());
+        // NOT event.getPoseStack(): at AFTER_LEVEL that is the projection stack (see CameraCapture)
+        modelView.mulPoseMatrix(CameraCapture.cameraModelView());
         RenderSystem.applyModelViewMatrix();
 
         for (ManEntity man : men) {

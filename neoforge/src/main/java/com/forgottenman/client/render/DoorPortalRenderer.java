@@ -138,10 +138,10 @@ public final class DoorPortalRenderer {
         }
 
         if (inTreeRoom) {
-            drawStatic(mc.level, visible, cam, event.getPoseStack().last().pose());
+            drawStatic(mc.level, visible, cam, cameraModelView(event, late));
             return;
         }
-        renderPortals(groupIntoDoorways(mc.level, visible), event, cam);
+        renderPortals(groupIntoDoorways(mc.level, visible), event, cam, late);
     }
 
     // One doorway, crafted or wild: still a lower half, still in range, still open
@@ -208,15 +208,25 @@ public final class DoorPortalRenderer {
         return doorways;
     }
 
-    private static void renderPortals(List<Doorway> doorways, RenderLevelStageEvent event, Vec3 cam) {
+    /**
+     * At AFTER_BLOCK_ENTITIES the event's pose stack is the camera model-view; at
+     * AFTER_LEVEL it is the projection instead, because 1.20.1 dispatches that stage from
+     * GameRenderer with a different stack. See CameraCapture.
+     */
+    private static Matrix4f cameraModelView(RenderLevelStageEvent event, boolean late) {
+        return late ? CameraCapture.cameraModelView() : event.getPoseStack().last().pose();
+    }
+
+    private static void renderPortals(List<Doorway> doorways, RenderLevelStageEvent event, Vec3 cam, boolean late) {
         Minecraft mc = Minecraft.getInstance();
+        Matrix4f cameraMatrix = cameraModelView(event, late);
         // A pack re-renders the world into its shadow map; portals have no business there
         if (ShaderCompat.isShadowPass()) {
             return;
         }
         if (ShaderCompat.portalUsesCompat()) {
             // The aperture draws through RenderType, which reads RenderSystem's model-view
-            pushCameraModelView(event.getPoseStack().last().pose());
+            pushCameraModelView(cameraMatrix);
             CompatPortalRenderer.render(mc.level, doorways, cam, mc.level.getGameTime());
             popCameraModelView();
             return;
@@ -249,7 +259,7 @@ public final class DoorPortalRenderer {
         // One stencil clear per frame; each doorway gets its own ref so stale masks can't match
         GlStateManager._stencilMask(0xFF);
         RenderSystem.clear(GL11.GL_STENCIL_BUFFER_BIT, Minecraft.ON_OSX);
-        pushCameraModelView(event.getPoseStack().last().pose());
+        pushCameraModelView(cameraMatrix);
 
         int drawn = 0;
         for (Doorway doorway : doorways) {
@@ -295,7 +305,7 @@ public final class DoorPortalRenderer {
             boolean frontSide = cam.subtract(doorway.anchor()).dot(facingVec) >= 0.0;
             Direction entering = frontSide ? doorway.facing().getOpposite() : doorway.facing();
             float rad = (float) Math.toRadians(ROOM_ENTRY_YAW - entering.toYRot());
-            Matrix4f modelView = new Matrix4f(event.getPoseStack().last().pose())
+            Matrix4f modelView = new Matrix4f(cameraMatrix)
                     .translate((float) (doorway.anchor().x - cam.x),
                             (float) (doorway.anchor().y - cam.y),
                             (float) (doorway.anchor().z - cam.z))

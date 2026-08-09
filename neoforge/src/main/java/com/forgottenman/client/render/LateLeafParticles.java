@@ -62,7 +62,8 @@ public final class LateLeafParticles {
 
         PoseStack modelView = RenderSystem.getModelViewStack();
         modelView.pushPose();
-        modelView.mulPoseMatrix(event.getPoseStack().last().pose());
+        // NOT event.getPoseStack(): at AFTER_LEVEL that is the projection stack (see CameraCapture)
+        modelView.mulPoseMatrix(CameraCapture.cameraModelView());
         RenderSystem.applyModelViewMatrix();
 
         BufferBuilder builder = Tesselator.getInstance().getBuilder();

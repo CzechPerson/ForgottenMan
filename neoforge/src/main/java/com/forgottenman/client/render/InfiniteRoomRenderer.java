@@ -93,7 +93,7 @@ public final class InfiniteRoomRenderer {
         // never reads. Same mesh, same shader, drawn past the composite: identical to
         // vanilla by construction.
         if (compat) {
-            drawOriginRoom(event, event.getCamera().getPosition());
+            drawOriginRoom(event, event.getCamera().getPosition(), cameraModelView(event, true));
         }
         // Copies glide out from the real room to their slots instead of popping in
         float dt = mc.getDeltaFrameTime();
@@ -162,8 +162,7 @@ public final class InfiniteRoomRenderer {
         // Front to back, far copies fail depth early
         draws.sort(Comparator.comparingDouble(CopyDraw::distSq));
 
-        // In 1.20.1 the level pose stack already carries the camera rotation
-        Matrix4f baseRotation = event.getPoseStack().last().pose();
+        Matrix4f baseRotation = cameraModelView(event, compat);
         Matrix4f projection = new Matrix4f(event.getProjectionMatrix());
 
         RenderSystem.setShaderTexture(0, InventoryMenu.BLOCK_ATLAS);
@@ -215,8 +214,17 @@ public final class InfiniteRoomRenderer {
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
+    /**
+     * At AFTER_SKY the event's pose stack is the camera model-view; at AFTER_LEVEL it is
+     * the projection instead, because 1.20.1 dispatches that stage from GameRenderer with
+     * a different stack. See CameraCapture.
+     */
+    private static Matrix4f cameraModelView(RenderLevelStageEvent event, boolean compat) {
+        return compat ? CameraCapture.cameraModelView() : event.getPoseStack().last().pose();
+    }
+
     // The real room, redrawn fullbright over whatever the pack shaded
-    private static void drawOriginRoom(RenderLevelStageEvent event, Vec3 cam) {
+    private static void drawOriginRoom(RenderLevelStageEvent event, Vec3 cam, Matrix4f cameraMatrix) {
         VertexBuffer mesh = RoomMesh.getAmbientOccluded();
         ShaderInstance shader = ModShaders.getRoomCopyShader();
         if (mesh == null || shader == null) {
@@ -242,7 +250,7 @@ public final class InfiniteRoomRenderer {
         shader.safeGetUniform("Desync").set(0.0F);
         shader.safeGetUniform("Distortion").set(0.0F); // the real room never wobbles
 
-        Matrix4f modelView = new Matrix4f(event.getPoseStack().last().pose())
+        Matrix4f modelView = new Matrix4f(cameraMatrix)
                 .translate((float) (RoomLayout.ORIGIN.getX() - cam.x),
                         (float) (RoomLayout.ORIGIN.getY() - cam.y),
                         (float) (RoomLayout.ORIGIN.getZ() - cam.z));
@@ -250,7 +258,7 @@ public final class InfiniteRoomRenderer {
         mesh.drawWithShader(modelView, new Matrix4f(event.getProjectionMatrix()), shader);
         VertexBuffer.unbind();
 
-        drawDoorsFullbright(event, cam);
+        drawDoorsFullbright(cam, cameraMatrix);
 
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         GL11.glPolygonOffset(0.0F, 0.0F);
@@ -263,7 +271,7 @@ public final class InfiniteRoomRenderer {
      * and the room's darkness renders them near-black beside the fullbright overdraw.
      * Tesselated per frame from the live blockstate instead.
      */
-    private static void drawDoorsFullbright(RenderLevelStageEvent event, Vec3 cam) {
+    private static void drawDoorsFullbright(Vec3 cam, Matrix4f cameraMatrix) {
         Minecraft mc = Minecraft.getInstance();
         ShaderInstance shader = ModShaders.getRoomCopyShader();
         if (mc.level == null || shader == null) {
@@ -297,7 +305,7 @@ public final class InfiniteRoomRenderer {
         }
         PoseStack stack = RenderSystem.getModelViewStack();
         stack.pushPose();
-        stack.mulPoseMatrix(event.getPoseStack().last().pose());
+        stack.mulPoseMatrix(cameraMatrix);
         RenderSystem.applyModelViewMatrix();
         RenderSystem.setShader(ModShaders::getRoomCopyShader);
         BufferUploader.drawWithShader(mesh);
