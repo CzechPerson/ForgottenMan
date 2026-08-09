@@ -25,6 +25,11 @@ repositories {
         name = 'TerraformersMC (EMI)'
         url = 'https://maven.terraformersmc.com/releases/'
     }
+    maven {
+        name = 'Modrinth (Oculus/Embeddium, dev shader testing only)'
+        url = 'https://api.modrinth.com/maven'
+        content { includeGroup 'maven.modrinth' }
+    }
 }
 
 base {
@@ -74,12 +79,28 @@ legacyForge {
     }
 }
 
+// Runtime-only test mods, never pulled by dependents of this mod.
+def localRuntime = configurations.maybeCreate('localRuntime')
+configurations.runtimeClasspath.extendsFrom(localRuntime)
+
+// Production Forge mods are compiled against SRG names while this dev client runs on
+// Mojang names, so dropping Oculus straight into run/mods kills the game during mixin
+// apply. This remaps the jars -- bytecode and mixin refmaps both -- on the way in, which
+// the mixin.env.remapRefMap system property alone never did. Creates 'modLocalRuntime'.
+obfuscation.createRemappingConfiguration(localRuntime)
+
 dependencies {
     // JEI (optional integration: the @JeiPlugin class only loads when JEI is present)
     compileOnly "mezz.jei:jei-1.20.1-common-api:15.21.0.148"
     compileOnly "mezz.jei:jei-1.20.1-forge-api:15.21.0.148"
     // EMI (optional integration: the @EmiEntrypoint class only loads when EMI is present)
     compileOnly "dev.emi:emi-forge:1.1.24+1.20.1:api"
+
+    // Shaderpack testing in the dev client. Modrinth version ids, not version numbers:
+    // Embeddium's '0.2.9+mc1.20.1' would read as a Gradle dynamic version.
+    // Oculus 1.20.1-1.6.9 + Embeddium 0.2.9+mc1.20.1, matching a real install.
+    modLocalRuntime "maven.modrinth:oculus:6xfXhsvf"
+    modLocalRuntime "maven.modrinth:embeddium:HTjadeuQ"
 }
 
 // Expands the declared properties into META-INF/mods.toml.
