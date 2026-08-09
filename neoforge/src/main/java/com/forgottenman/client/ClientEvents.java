@@ -5,17 +5,20 @@ import com.forgottenman.client.gui.ManDialogueScreen;
 import com.forgottenman.client.particle.FallingLeafParticle;
 import com.forgottenman.client.render.DoorPortalRenderer;
 import com.forgottenman.client.render.ManRenderer;
+import com.forgottenman.compat.ShaderCompat;
 import com.forgottenman.network.RealityState;
 import com.forgottenman.registry.ModDimensions;
 import com.forgottenman.registry.ModEntities;
 import com.forgottenman.registry.ModParticles;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.client.event.RegisterDimensionSpecialEffectsEvent;
 import net.minecraftforge.client.event.RegisterParticleProvidersEvent;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
+import net.minecraftforge.client.event.RenderHandEvent;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -28,6 +31,7 @@ public final class ClientEvents {
         RealityState.setMirrorLevel(0); // Fresh world, fresh reality
         DoorPortalRenderer.clear();
         WildPortalState.clear();
+        ShaderCompat.invalidate();
         music = null;
     }
 
@@ -42,6 +46,7 @@ public final class ClientEvents {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
+        ShaderCompat.tick();
         // Enabling stencil destroys and recreates the main framebuffer, so it has to
         // happen between frames. Client ticks run before bindWrite; doing it from the
         // portal renderer instead deleted the framebuffer mid-draw and broke every
@@ -49,6 +54,12 @@ public final class ClientEvents {
         if (!stencilReady) {
             stencilReady = true;
             mc.getMainRenderTarget().enableStencil();
+        }
+        // Keeps the verdict fresh and logs it when it flips, so a bug report says which
+        // path was running. Cached, so this is about one check a second. No GL here --
+        // the framebuffer probe only runs inside the render stage.
+        if (mc.level != null) {
+            ShaderCompat.effectsUseCompat();
         }
         boolean inRoom = mc.level != null && mc.level.dimension() == ModDimensions.TREE_ROOM;
         if (inRoom) {
@@ -68,6 +79,26 @@ public final class ClientEvents {
             musicRetryTimer = 0;
         }
         wasInRoom = inRoom;
+    }
+
+    // The held item is lit from real block light, which the tree room has none of, so a
+    // pack renders it black; without a pack forceBrightLightmap already brightens it and
+    // this is a no-op. RenderHandEvent has no light setter, so cancel and reissue the same
+    // render fullbright -- safe from recursion, Forge fires this before calling
+    // renderArmWithItem, which an access transformer opens up.
+    @SubscribeEvent
+    static void onRenderHand(RenderHandEvent event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.player == null
+                || mc.level.dimension() != ModDimensions.TREE_ROOM
+                || !ShaderCompat.useVanillaShaders()) {
+            return;
+        }
+        event.setCanceled(true);
+        mc.gameRenderer.itemInHandRenderer.renderArmWithItem(mc.player, event.getPartialTick(),
+                event.getInterpolatedPitch(), event.getHand(), event.getSwingProgress(),
+                event.getItemStack(), event.getEquipProgress(), event.getPoseStack(),
+                event.getMultiBufferSource(), LightTexture.FULL_BRIGHT);
     }
 
     @SubscribeEvent

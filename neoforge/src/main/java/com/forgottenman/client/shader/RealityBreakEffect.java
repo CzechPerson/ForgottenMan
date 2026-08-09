@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.PostChain;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
@@ -26,7 +27,8 @@ public final class RealityBreakEffect {
     private static int lastWidth = -1;
     private static int lastHeight = -1;
 
-    @SubscribeEvent
+    // AFTER_LEVEL draw order is otherwise undefined: and the post chain last, over everything
+    @SubscribeEvent(priority = EventPriority.LOWEST)
     static void onRenderLevelStage(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_LEVEL) {
             return;

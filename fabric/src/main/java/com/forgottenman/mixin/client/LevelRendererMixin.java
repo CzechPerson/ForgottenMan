@@ -2,6 +2,7 @@ package com.forgottenman.mixin.client;
 
 import com.forgottenman.client.render.DoorPortalRenderer;
 import com.forgottenman.client.render.InfiniteRoomRenderer;
+import com.forgottenman.client.render.LateRenderDispatcher;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.GameRenderer;
@@ -24,8 +25,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *
  * The frustum is rebuilt from the two fields rather than captured out of the local
  * variable table, which keeps this working regardless of how the method compiles.
+ *
+ * Priority 2000: Iris composites the world from an @Inject at renderLevel's RETURN, at
+ * the default priority 1000. Applying after it puts the tail callback below closer to
+ * the return instruction, so the late draws run after the composite and land on the
+ * final image instead of being painted over. Without Iris the priority changes nothing.
  */
-@Mixin(LevelRenderer.class)
+@Mixin(value = LevelRenderer.class, priority = 2000)
 public abstract class LevelRendererMixin {
     @Shadow
     private Frustum cullingFrustum;
@@ -64,5 +70,18 @@ public abstract class LevelRendererMixin {
         Frustum frustum = this.capturedFrustum != null ? this.capturedFrustum : this.cullingFrustum;
         DoorPortalRenderer.renderPortalStage(partialTick, camera, frustum,
                 poseStack.last().pose(), projectionMatrix);
+    }
+
+    /**
+     * The late draws, at Forge's AFTER_LEVEL point. Under a shaderpack every effect
+     * moves here, past the pack's composite; the dispatcher keeps them in the order
+     * event priority keeps them on Forge.
+     */
+    @Inject(method = "renderLevel", at = @At("TAIL"))
+    private void forgottenman$afterLevel(PoseStack poseStack, float partialTick, long finishNanoTime,
+                                         boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer,
+                                         LightTexture lightTexture, Matrix4f projectionMatrix, CallbackInfo ci) {
+        Frustum frustum = this.capturedFrustum != null ? this.capturedFrustum : this.cullingFrustum;
+        LateRenderDispatcher.render(partialTick, camera, frustum, poseStack.last().pose(), projectionMatrix);
     }
 }

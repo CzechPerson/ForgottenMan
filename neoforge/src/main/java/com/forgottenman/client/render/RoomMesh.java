@@ -31,17 +31,36 @@ public final class RoomMesh {
     @Nullable
     private static VertexBuffer buffer;
     private static boolean attempted;
+    @Nullable
+    private static VertexBuffer aoBuffer;
+    private static boolean aoAttempted;
 
     @Nullable
     public static VertexBuffer get() {
         if (!attempted) {
             attempted = true;
-            bake();
+            buffer = bake(false);
         }
         return buffer;
     }
 
-    private static void bake() {
+    /**
+     * The same room with ambient occlusion, for redrawing the real island over a
+     * shaderpack's version of it. AO is wrong for the mirror copies -- it baked glitchy
+     * near-black patches -- but the island needs the corner darkening the chunk renderer
+     * gives it, or the overdraw reads as too flat.
+     */
+    @Nullable
+    public static VertexBuffer getAmbientOccluded() {
+        if (!aoAttempted) {
+            aoAttempted = true;
+            aoBuffer = bake(true);
+        }
+        return aoBuffer;
+    }
+
+    @Nullable
+    private static VertexBuffer bake(boolean ambientOcclusion) {
         try {
             BufferBuilder builder = Tesselator.getInstance().getBuilder();
             builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
@@ -60,24 +79,32 @@ public final class RoomMesh {
                 }
                 pose.pushPose();
                 pose.translate(pos.getX(), pos.getY(), pos.getZ());
-                // No AO, it baked glitchy near-black patches; shading comes from FakeRoomLevel
-                dispatcher.getModelRenderer().tesselateWithoutAO(FakeRoomLevel.INSTANCE,
-                        dispatcher.getBlockModel(state), state, pos, pose, builder, true, random,
-                        state.getSeed(pos), OverlayTexture.NO_OVERLAY, ModelData.EMPTY, null);
+                if (ambientOcclusion) {
+                    dispatcher.getModelRenderer().tesselateBlock(FakeRoomLevel.INSTANCE,
+                            dispatcher.getBlockModel(state), state, pos, pose, builder, true, random,
+                            state.getSeed(pos), OverlayTexture.NO_OVERLAY, ModelData.EMPTY, null);
+                } else {
+                    // No AO for the copies, it baked glitchy near-black patches; shading
+                    // comes from FakeRoomLevel
+                    dispatcher.getModelRenderer().tesselateWithoutAO(FakeRoomLevel.INSTANCE,
+                            dispatcher.getBlockModel(state), state, pos, pose, builder, true, random,
+                            state.getSeed(pos), OverlayTexture.NO_OVERLAY, ModelData.EMPTY, null);
+                }
                 pose.popPose();
             }
             BufferBuilder.RenderedBuffer mesh = builder.endOrDiscardIfEmpty();
             if (mesh == null) {
                 LOGGER.warn("Tree room mesh baked empty");
-                return;
+                return null;
             }
             VertexBuffer vertexBuffer = new VertexBuffer(VertexBuffer.Usage.STATIC);
             vertexBuffer.bind();
             vertexBuffer.upload(mesh);
             VertexBuffer.unbind();
-            buffer = vertexBuffer;
+            return vertexBuffer;
         } catch (Exception e) {
             LOGGER.error("Failed to bake tree room mesh", e);
+            return null;
         }
     }
 
