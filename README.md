@@ -13,8 +13,6 @@ Minecraft **1.21.1** or **1.20.1**
 
 Fabric also wants [Fabric API](https://modrinth.com/mod/fabric-api).
 
-Shaderpacks (Iris, Oculus, OptiFine) work since 1.2.0. `effects_mode` in the client config (`forgottenman-client`) forces the `full` or `compat` path if the automatic pick looks wrong.
-
 ## Building from source
 
 `gradlew build` leaves both loader jars in `build/libs`. 1.21.1 lives on `main` and builds with Java 21; 1.20.1 lives on the `1.20.1` branch and builds with Java 17.
